@@ -25,7 +25,7 @@
 #include <Model.h>
 
 // Global Variables
-const char* APP_TITLE = "Introduction to Modern OpenGL - Lighting";
+const char* APP_TITLE = "Earth visualization";
 const int gWindowWidth = 800;
 const int gWindowHeight = 600;
 GLFWwindow* gWindow = NULL;
@@ -85,7 +85,7 @@ int main() {
 	objectShader.setUniform("uDirectionalLight.direction", directionalLightDirection);
 	objectShader.setUniform("uDirectionalLight.ambient", 0.0f, 0.0f, 0.0f);
 	objectShader.setUniform("uDirectionalLight.diffuse", 1.0f, 1.0f, 1.0f);
-	objectShader.setUniform("uDirectionalLight.specular", 1.0f, 1.0f, 1.0f);
+	objectShader.setUniform("uDirectionalLight.specular", 0.1f, 0.1f, 0.1f);
 	// Point light
 	//for (int i=0; i<4; i++) {
 	//	objectShader.setUniform(("uPointLights[" + std::to_string(i) +"].position").c_str(),  pointLightPos[i]);
@@ -139,6 +139,8 @@ int main() {
 		//projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 100.0f);
 
 		// Spot light
+		objectShader.use();
+		objectShader.setUniform("uCameraPos",           camera.position);
 		objectShader.setUniform("uSpotLight.position", camera.position);
 		objectShader.setUniform("uSpotLight.direction", camera.front);
 
@@ -162,7 +164,6 @@ int main() {
 
 
 		// Containers and ground
-		objectShader.use();
 		objectShader.setUniform("uModel", objectMatrix);
 		objectShader.setUniform("uView", view);
 		objectShader.setUniform("uProjection", projection);
