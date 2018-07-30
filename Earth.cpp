@@ -27,9 +27,9 @@
 #include <Skybox.h>
 
 // Global Variables
-const char* APP_TITLE = "Earth visualization";
-const int gWindowWidth = 800;
-const int gWindowHeight = 600;
+const char* APP_TITLE = "Earth Sim";
+const int gWindowWidth = 1024;
+const int gWindowHeight = 768;
 GLFWwindow* gWindow = NULL;
 
 // Camera system
@@ -73,15 +73,27 @@ int main() {
 
 
 
-	// Skybox
+	/** Skybox Mapping Order
+	      _______
+	      | Top |
+	      |  3  |
+	______|_____|____________
+	|Left |Front|Right| Back|
+	|  2  |  5  |  1  |  6  |
+	|_____|_____|_____|_____|
+	      |Botom|
+	      |  4  |
+	      |_____|
+	*/
+
 	Skybox skybox;
 	std::vector<std::string> faces = {
-		"Resources/skyboxes/nebula/nebula_px.jpg",
-		"Resources/skyboxes/nebula/nebula_nx.jpg",
-		"Resources/skyboxes/nebula/nebula_py.jpg",
-		"Resources/skyboxes/nebula/nebula_ny.jpg",
-		"Resources/skyboxes/nebula/nebula_pz.jpg",
-		"Resources/skyboxes/nebula/nebula_nz.jpg",
+		"Resources/skyboxes/universe/image_3.png", // right
+		"Resources/skyboxes/universe/image_1.png", // left
+		"Resources/skyboxes/universe/image_4.png", // top
+		"Resources/skyboxes/universe/image_5.png", // bottom
+		"Resources/skyboxes/universe/image_2.png", // front
+		"Resources/skyboxes/universe/image_0.png", // back
 	};
 	skybox.LoadTexture(faces);
 
@@ -103,7 +115,7 @@ int main() {
 	objectShader.setUniform("uDirectionalLight.direction", directionalLightDirection);
 	objectShader.setUniform("uDirectionalLight.ambient", 0.0f, 0.0f, 0.0f);
 	objectShader.setUniform("uDirectionalLight.diffuse", 1.0f, 1.0f, 1.0f);
-	objectShader.setUniform("uDirectionalLight.specular", 0.1f, 0.1f, 0.1f);
+	objectShader.setUniform("uDirectionalLight.specular", 0.0f, 0.0f, 0.0f);
 	// Point light
 	//for (int i=0; i<4; i++) {
 	//	objectShader.setUniform(("uPointLights[" + std::to_string(i) +"].position").c_str(),  pointLightPos[i]);
