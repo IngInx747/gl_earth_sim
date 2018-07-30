@@ -10,6 +10,11 @@
 #include <ShaderProgram.h>
 #include <Texture.h>
 
+struct Pixel {
+	glm::vec2 position;
+	glm::vec2 texCoords;
+};
+
 struct Vertex {
 	glm::vec3 position;
 	glm::vec3 normal;
@@ -30,8 +35,10 @@ public:
 	Mesh(std::vector<Vertex> vertices,
 		std::vector<unsigned int> indices,
 		std::vector<Texture> textures);
+	//~Mesh();
 
-	void Draw(ShaderProgram & shader);
+	void draw(ShaderProgram & shader);
+	void deleteBuffers();
 
 private:
 	/** Render Data */

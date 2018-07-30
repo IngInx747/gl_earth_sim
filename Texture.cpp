@@ -18,10 +18,11 @@ std::unordered_map<TextureType, std::string> TextureTypeName = {
 	std::pair<TextureType, std::string> (TEX_SPECULAR, "texture_specular"),
 	std::pair<TextureType, std::string> (TEX_NORMAL,   "texture_normal"),
 	std::pair<TextureType, std::string> (TEX_HEIGHT,   "texture_height"),
-	std::pair<TextureType, std::string> (TEX_EMISSION, "texture_emission")
+	std::pair<TextureType, std::string> (TEX_EMISSION, "texture_emission"),
+	std::pair<TextureType, std::string> (TEX_AMBIENT,  "texture_ambient")
 };
 
-unsigned int TextureFromFile(const std::string filename, bool gamma) {
+unsigned int LoadTexture(const std::string filename, bool gamma) {
 
 	unsigned int textureID{};
 	glGenTextures(1, &textureID);
@@ -30,7 +31,7 @@ unsigned int TextureFromFile(const std::string filename, bool gamma) {
 	unsigned char * data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
 
 	if (!data)
-		std::cerr << "TextureFromFile: Texture failed to load at path: " << filename << "\n";
+		std::cerr << "LoadTexture: Texture failed to load at path: " << filename << "\n";
 
 	else {
 		GLenum imageFormat;
@@ -53,6 +54,54 @@ unsigned int TextureFromFile(const std::string filename, bool gamma) {
 	return textureID;
 }
 
+unsigned int LoadCubemap(const std::vector<std::string> & faces) {
+
+	/**
+	* loads a cubemap texture from 6 individual texture faces
+	* order:
+	* +X (right)
+	* -X (left)
+	* +Y (top)
+	* -Y (bottom)
+	* +Z (front) 
+	* -Z (back)
+	*/
+
+	unsigned int textureID{};
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+	int width, height, nrComponents;
+
+	for (unsigned int i=0; i<faces.size(); i++) {
+
+		unsigned char * data = stbi_load(faces[i].c_str(), &width, &height, &nrComponents, 0);
+
+		if (!data)
+			std::cerr << "LoadCubemap: Texture failed to load at path: " << faces[i] << "\n";
+
+		else {
+			GLenum imageFormat;
+			if (nrComponents == 1) imageFormat = GL_RED;
+			else if (nrComponents == 3) imageFormat = GL_RGB;
+			else if (nrComponents == 4) imageFormat = GL_RGBA;
+
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+				0, imageFormat, width, height, 0, imageFormat, GL_UNSIGNED_BYTE, data);
+		}
+
+		stbi_image_free(data);
+	}
+
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	return textureID;
+}
+
 /** Default texture */
 
 std::string defaultTextureFilename("Resources/default/default.png");
@@ -69,27 +118,27 @@ Texture defaultUnknownTexture  {0, TEX_UNKNOWN, defaultTextureFilename};
 Texture DefaultTexture(TextureType type) {
 	if (type == defaultDiffuseTexture.type) {
 		if (defaultDiffuseTexture.id == 0)
-			defaultDiffuseTexture.id = TextureFromFile(defaultDiffuseTexture.path);
+			defaultDiffuseTexture.id = LoadTexture(defaultDiffuseTexture.path);
 		return defaultDiffuseTexture;
 	} else if (type == defaultSpecularTexture.type) {
 		if (defaultSpecularTexture.id == 0)
-			defaultSpecularTexture.id = TextureFromFile(defaultSpecularTexture.path);
+			defaultSpecularTexture.id = LoadTexture(defaultSpecularTexture.path);
 		return defaultSpecularTexture;
 	} /**else if (type == defaultNormalTexture.type) {
 		if (defaultNormalTexture.id == 0)
-			defaultNormalTexture.id = TextureFromFile(defaultNormalTexture.path);
+			defaultNormalTexture.id = LoadTexture(defaultNormalTexture.path);
 		return defaultNormalTexture;
 	} else if (type == defaultHeightTexture.type) {
 		if (defaultHeightTexture.id == 0)
-			defaultHeightTexture.id = TextureFromFile(defaultHeightTexture.path);
+			defaultHeightTexture.id = LoadTexture(defaultHeightTexture.path);
 		return defaultHeightTexture;
 	} else if (type == defaultEmissionTexture.type) {
 		if (defaultEmissionTexture.id == 0)
-			defaultEmissionTexture.id = TextureFromFile(defaultEmissionTexture.path);
+			defaultEmissionTexture.id = LoadTexture(defaultEmissionTexture.path);
 		return defaultEmissionTexture;
 	}*/ else {
 		if (defaultUnknownTexture.id == 0)
-			defaultUnknownTexture.id = TextureFromFile(defaultUnknownTexture.path);
+			defaultUnknownTexture.id = LoadTexture(defaultUnknownTexture.path);
 		return defaultUnknownTexture;
 	}
 }

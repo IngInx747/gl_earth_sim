@@ -22,43 +22,50 @@ ShaderProgram::~ShaderProgram()
 }
 
 //-----------------------------------------------------------------------------
-// Loads vertex and fragment shaders
+// Load vertex and fragment shaders, and if geometry shader exists
 //-----------------------------------------------------------------------------
-bool ShaderProgram::loadShaders(const char* vsFilename, const char* fsFilename)
-{
-	string vsString = fileToString(vsFilename);
-	string fsString = fileToString(fsFilename);
-	const GLchar* vsSourcePtr = vsString.c_str();
-	const GLchar* fsSourcePtr = fsString.c_str();
-
-	GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-	GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-
-	glShaderSource(vs, 1, &vsSourcePtr, NULL);
-	glShaderSource(fs, 1, &fsSourcePtr, NULL);
-
-	glCompileShader(vs);
-	checkCompileErrors(vs, VERTEX);
-
-	glCompileShader(fs);
-	checkCompileErrors(fs, FRAGMENT);
+bool ShaderProgram::loadShaders(const char* vsFilename, const char* fsFilename, const char* gsFilename) {
 
 	mHandle = glCreateProgram();
-	if (mHandle == 0)
-	{
+	if (mHandle == 0) {
 		std::cerr << "Unable to create shader program!" << std::endl;
 		return false;
 	}
 
+	GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+	std::string vsString = fileToString(vsFilename);
+	const GLchar* vsSourcePtr = vsString.c_str();
+	glShaderSource(vs, 1, &vsSourcePtr, NULL);
+	glCompileShader(vs);
+	checkCompileErrors(vs, VERTEX);
 	glAttachShader(mHandle, vs);
+
+	GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+	std::string fsString = fileToString(fsFilename);
+	const GLchar* fsSourcePtr = fsString.c_str();
+	glShaderSource(fs, 1, &fsSourcePtr, NULL);
+	glCompileShader(fs);
+	checkCompileErrors(fs, FRAGMENT);
 	glAttachShader(mHandle, fs);
+
+	GLuint gs;
+	if (gsFilename) {
+		gs = glCreateShader(GL_GEOMETRY_SHADER);
+		std::string gsString = fileToString(gsFilename);
+		const GLchar* gsSourcePtr = gsString.c_str();
+		glShaderSource(gs, 1, &gsSourcePtr, NULL);
+		glCompileShader(gs);
+		checkCompileErrors(gs, GEOMETRY);
+		glAttachShader(mHandle, gs);
+	}
 
 	glLinkProgram(mHandle);
 	checkCompileErrors(mHandle, PROGRAM);
 
-
 	glDeleteShader(vs);
 	glDeleteShader(fs);
+	if (gsFilename)
+		glDeleteShader(gs);
 
 	mUniformLocations.clear();
 

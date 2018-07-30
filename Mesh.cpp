@@ -45,7 +45,7 @@ void Mesh :: setup() {
 	glBindVertexArray(0); // Release control of vao
 }
 
-void Mesh :: Draw(ShaderProgram & shader) {
+void Mesh :: draw(ShaderProgram & shader) {
 
 	// Bind textures
 	unsigned int diffuseNr  = 1;
@@ -53,6 +53,7 @@ void Mesh :: Draw(ShaderProgram & shader) {
 	unsigned int normalNr   = 1;
 	unsigned int heightNr   = 1;
 	unsigned int emissionNr = 1;
+	unsigned int ambientNr  = 1;
 
 	for (unsigned int i=0; i<textures.size(); i++) {
 
@@ -71,6 +72,8 @@ void Mesh :: Draw(ShaderProgram & shader) {
 			number = std::to_string(heightNr++);
 		else if (type == TEX_EMISSION)
 			number = std::to_string(emissionNr++);
+		else if (type == TEX_AMBIENT)
+			number = std::to_string(ambientNr++);
 
 		shader.setUniform("uMaterial." + TextureTypeName[type] + number, (int)i);
 		// Bind the texture
@@ -84,4 +87,10 @@ void Mesh :: Draw(ShaderProgram & shader) {
 	glBindVertexArray(0);
 
 	glActiveTexture(GL_TEXTURE0);
+}
+
+void Mesh :: deleteBuffers() {
+	glDeleteVertexArrays(1, &vao);
+	glDeleteBuffers(1, &vbo);
+	glDeleteBuffers(1, &ebo);
 }

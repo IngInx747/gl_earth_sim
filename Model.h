@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <memory>
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
@@ -12,15 +13,22 @@
 #include <assimp/postprocess.h>
 
 #include <ShaderProgram.h>
+#include <Operation.h>
 #include <Texture.h>
 #include <Mesh.h>
 
-class Model
-{
+class Model {
 public:
 	/** Methods */
 	Model(std::string path, bool gamma = false);
-	void Draw(ShaderProgram & shader);
+	~Model();
+	void draw(ShaderProgram & shader);
+
+	void Translate(glm::vec3 position);
+	void Translate(float x, float y, float z);
+	void Scale(glm::vec3 scale);
+	void Scale(float x, float y, float z);
+	void Rotate(float rotation, glm::vec3 axis);
 
 private:
 	/** Model Data */
@@ -28,6 +36,15 @@ private:
 	std::string directory;
 	bool gammaCorrection;
 	std::vector<Texture> textures_loaded; // store loaded textures to avoid loading twice
+
+	/** Trasformation */
+	std::vector<std::shared_ptr<Operation> > operations;
+
+	/** Geometry params */
+	// TODO: save geometry params each frame
+	glm::vec3 position;
+	glm::vec3 scale;
+	glm::mat4 rotation;
 
 	/** Methods */
 	void loadModel(std::string & path);

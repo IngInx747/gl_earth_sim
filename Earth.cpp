@@ -23,13 +23,14 @@
 
 /** Model Wrapper */
 #include <Model.h>
+#include <Primitives.h>
+#include <Skybox.h>
 
 // Global Variables
 const char* APP_TITLE = "Earth visualization";
 const int gWindowWidth = 800;
 const int gWindowHeight = 600;
 GLFWwindow* gWindow = NULL;
-bool gWireframe = false;
 
 // Camera system
 Camera camera(glm::vec3(0.0f, 0.0f, 30.0f));
@@ -61,11 +62,28 @@ int main() {
 	}
 
 	// Shader loader
-	ShaderProgram objectShader;
-	objectShader.loadShaders("shaders/earth.vert", "shaders/earth.frag");
+	ShaderProgram objectShader, skyboxShader;
+	objectShader.loadShaders("shaders/earth.vert",  "shaders/earth.frag");
+	skyboxShader.loadShaders("shaders/skybox.vert", "shaders/skybox.frag");
+
+
 
 	// Model loader
 	Model objectModel("Resources/earth/earth.obj");
+
+
+
+	// Skybox
+	Skybox skybox;
+	std::vector<std::string> faces = {
+		"Resources/skyboxes/nebula/nebula_px.jpg",
+		"Resources/skyboxes/nebula/nebula_nx.jpg",
+		"Resources/skyboxes/nebula/nebula_py.jpg",
+		"Resources/skyboxes/nebula/nebula_ny.jpg",
+		"Resources/skyboxes/nebula/nebula_pz.jpg",
+		"Resources/skyboxes/nebula/nebula_nz.jpg",
+	};
+	skybox.LoadTexture(faces);
 
 
 
@@ -101,7 +119,7 @@ int main() {
 	objectShader.setUniform("uSpotLight.outerCutOff", glm::cos(glm::radians(17.5f)));
 	objectShader.setUniform("uSpotLight.ambient", 0.0f, 0.0f, 0.0f);
 	objectShader.setUniform("uSpotLight.diffuse", 1.0f, 1.0f, 1.0f);
-	objectShader.setUniform("uSpotLight.specular", 1.0f, 1.0f, 1.0f);
+	objectShader.setUniform("uSpotLight.specular", 0.0f, 0.0f, 0.0f);
 	objectShader.setUniform("uSpotLight.constant", 1.0f);
 	objectShader.setUniform("uSpotLight.linear", 0.09f);
 	objectShader.setUniform("uSpotLight.quadratic", 0.032f);
@@ -110,6 +128,10 @@ int main() {
 
 	// Camera global
 	float width_height_ratio = (float)gWindowWidth / (float)gWindowHeight;
+	glm::mat4 projection = glm::perspective(glm::radians(camera.fov), width_height_ratio, 0.1f, 100.0f);
+	//projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 100.0f);
+	objectShader.use();
+	objectShader.setUniform("uProjection", projection);
 
 
 
@@ -134,17 +156,25 @@ int main() {
 
 
 		// Create transformations
-		glm::mat4 view = camera.getViewMatrix();glm::mat4 projection;
-		projection = glm::perspective(glm::radians(camera.fov), width_height_ratio, 0.1f, 100.0f);
-		//projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 100.0f);
+		glm::mat4 view = camera.getViewMatrix();
+		objectShader.use();
+		objectShader.setUniform("uView", view);
 
 		// Spot light
 		objectShader.use();
 		objectShader.setUniform("uCameraPos",           camera.position);
-		objectShader.setUniform("uSpotLight.position", camera.position);
+		objectShader.setUniform("uSpotLight.position",  camera.position);
 		objectShader.setUniform("uSpotLight.direction", camera.front);
 
-		// Play with Loaded Model
+
+
+		/** Skybox */
+		view = glm::mat4(glm::mat3(camera.getViewMatrix())); // remove translation composition
+		skybox.Draw(skyboxShader, view, projection);
+
+
+
+		// Set geological configurations
 		float currentTime = (float)glfwGetTime();
 		float angularVelocity = glm::radians(10.0f);
 		glm::vec3 spinAxis(
@@ -155,22 +185,13 @@ int main() {
 			glm::sin(currentTime * angularVelocity / 30.0f),
 			0.0f,
 			-glm::cos(currentTime * angularVelocity / 30.0f));
-		glm::mat4 objectMatrix;
-		objectMatrix = glm::translate(objectMatrix, glm::vec3(0.0f, 0.0f, -1.0f));
-		objectMatrix = glm::scale(objectMatrix, glm::vec3(0.02f, 0.02f, 0.02f));
-		objectMatrix = glm::rotate(objectMatrix, currentTime * angularVelocity, spinAxis);
-		objectMatrix = glm::rotate(objectMatrix, glm::radians(23.5f), deviateAxis);
-
-
-
-		// Containers and ground
-		objectShader.setUniform("uModel", objectMatrix);
-		objectShader.setUniform("uView", view);
-		objectShader.setUniform("uProjection", projection);
-
-
-
-		objectModel.Draw(objectShader);
+		
+		// Set trasformation queue and draw
+		objectModel.Translate(glm::vec3(0.0f, 0.0f, -1.0f));
+		objectModel.Scale(glm::vec3(0.02f, 0.02f, 0.02f));
+		objectModel.Rotate(currentTime * angularVelocity, spinAxis);
+		objectModel.Rotate(glm::radians(23.5f), deviateAxis);
+		objectModel.draw(objectShader);
 
 
 
@@ -274,6 +295,7 @@ void processInput(GLFWwindow* window) {
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
 		camera.processKeyboard(DOWN, deltaTime);
 	
+	static bool gWireframe = false;
 	if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) {
 		gWireframe = !gWireframe;
 		if (gWireframe) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);

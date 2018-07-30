@@ -20,7 +20,9 @@ source = Earth.cpp
 
 program = $(source:.cpp=.exe)
 
-objsrc = ShaderProgram.cpp EularCamera.cpp Texture.cpp Mesh.cpp Model.cpp
+objsrc = \
+ShaderProgram.cpp EularCamera.cpp Texture.cpp Mesh.cpp \
+Operation.cpp Model.cpp Primitives.cpp Skybox.cpp
 
 object = $(objsrc:.cpp=.o)
 

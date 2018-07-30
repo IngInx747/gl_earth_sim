@@ -1,10 +1,12 @@
 #include <Model.h>
 #include <Mesh.h>
 #include <ShaderProgram.h>
+#include <Operation.h>
 #include <Texture.h>
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -13,14 +15,35 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <memory>
 
 Model :: Model(std::string path, bool gamma) : gammaCorrection(gamma) {
+
+	position = glm::vec3(0.0f, 0.0f, 0.0f);
+	scale    = glm::vec3(1.0f, 1.0f, 1.0f);
+	rotation = glm::mat4(1.0f);
+
 	loadModel(path);
 }
 
-void Model :: Draw(ShaderProgram & shader) {
+Model :: ~Model() {
+	for (Mesh & mesh : meshes)
+		mesh.deleteBuffers();
+}
+
+void Model :: draw(ShaderProgram & shader) {
+
+	// Bind Geometric params
+	glm::mat4 modelMatrix(1.0f);
+	for (auto opPtr : operations) {
+		opPtr.get()->operate(modelMatrix);
+	} operations.clear();
+
+	shader.use();
+	shader.setUniform("uModel", modelMatrix);
+
 	for (unsigned int i=0; i<meshes.size(); i++)
-		meshes[i].Draw(shader);
+		meshes[i].draw(shader);
 }
 
 void Model :: loadModel(std::string & path) {
@@ -178,16 +201,20 @@ Mesh Model :: processMesh(aiMesh * mesh, const aiScene * scene) {
 		textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
 		// normal maps
 		std::vector<Texture> normalMaps = loadTextures(material,
-			aiTextureType_HEIGHT, TEX_NORMAL);
+			aiTextureType_NORMALS, TEX_NORMAL);
 		textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
 		// height maps
 		std::vector<Texture> heightMaps = loadTextures(material,
-			aiTextureType_AMBIENT, TEX_HEIGHT);
+			aiTextureType_HEIGHT, TEX_HEIGHT);
 		textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 		// emission maps
 		std::vector<Texture> emissionMaps = loadTextures(material,
 			aiTextureType_EMISSIVE, TEX_EMISSION);
 		textures.insert(textures.end(), emissionMaps.begin(), emissionMaps.end());
+		// ambient maps
+		std::vector<Texture> ambientMaps = loadTextures(material,
+			aiTextureType_AMBIENT, TEX_AMBIENT);
+		textures.insert(textures.end(), ambientMaps.begin(), ambientMaps.end());
 	}
 
 	return Mesh(vertices, indices, textures);
@@ -221,7 +248,7 @@ std::vector<Texture> Model :: loadTextures(
 		if (skip) continue;
 
 		Texture texture;
-		texture.id = TextureFromFile(directory + std::string(str.C_Str()));
+		texture.id = LoadTexture(directory + std::string(str.C_Str()));
 		texture.type = type;
 		texture.path = str.C_Str();
 		textures.push_back(texture);
@@ -231,12 +258,35 @@ std::vector<Texture> Model :: loadTextures(
 			<< TextureTypeName[texture.type] << "\tfrom: " << texture.path << "\n";
 	}
 
-	if (typeCount == 0 && (type == TEX_DIFFUSE)) {
+	if (typeCount == 0 && (type == TEX_DIFFUSE || type == TEX_SPECULAR)) {
 		Texture texture = DefaultTexture(type);
 		textures.push_back(texture);
-		std::cout << "Model::loadTextures: " << texture.id << "\t"
-			<< TextureTypeName[texture.type] << "\tfrom: " << texture.path << "\n";
 	}
 
 	return textures;
+}
+
+void Model :: Translate(glm::vec3 position) {
+	std::shared_ptr<Operation> opPtr = std::make_shared<OpTranslate>(position);
+	operations.push_back(opPtr);
+}
+
+void Model :: Translate(float x, float y, float z) {
+	std::shared_ptr<Operation> opPtr = std::make_shared<OpTranslate>(x, y, z);
+	operations.push_back(opPtr);
+}
+
+void Model :: Scale(glm::vec3 scale) {
+	std::shared_ptr<Operation> opPtr = std::make_shared<OpScale>(scale);
+	operations.push_back(opPtr);
+}
+
+void Model :: Scale(float x, float y, float z) {
+	std::shared_ptr<Operation> opPtr = std::make_shared<OpScale>(x, y, z);
+	operations.push_back(opPtr);
+}
+
+void Model :: Rotate(float radian, glm::vec3 axis) {
+	std::shared_ptr<Operation> opPtr = std::make_shared<OpRotate>(axis, radian);
+	operations.push_back(opPtr);
 }
