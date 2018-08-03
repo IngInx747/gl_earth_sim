@@ -1,7 +1,6 @@
 #include <Model.h>
 #include <Mesh.h>
 #include <ShaderProgram.h>
-#include <Operation.h>
 #include <Texture.h>
 
 #include <glad/glad.h>
@@ -35,9 +34,12 @@ void Model :: draw(ShaderProgram & shader) {
 
 	// Bind Geometric params
 	glm::mat4 modelMatrix(1.0f);
-	for (auto opPtr : operations) {
-		opPtr.get()->operate(modelMatrix);
-	} operations.clear();
+	modelMatrix = glm::translate(modelMatrix, position);
+	modelMatrix = glm::scale(modelMatrix, scale);
+	modelMatrix = rotation * modelMatrix;
+	cnt_translate = 0;
+	cnt_scale = 0;
+	cnt_rotate = 0;
 
 	shader.use();
 	shader.setUniform("uModel", modelMatrix);
@@ -267,26 +269,36 @@ std::vector<Texture> Model :: loadTextures(
 }
 
 void Model :: Translate(glm::vec3 position) {
-	std::shared_ptr<Operation> opPtr = std::make_shared<OpTranslate>(position);
-	operations.push_back(opPtr);
+	if (cnt_translate == 0)
+		this->position = glm::vec3(0.0f, 0.0f, 0.0f);
+	this->position += position;
+	cnt_translate++;
 }
 
 void Model :: Translate(float x, float y, float z) {
-	std::shared_ptr<Operation> opPtr = std::make_shared<OpTranslate>(x, y, z);
-	operations.push_back(opPtr);
+	if (cnt_translate == 0)
+		this->position = glm::vec3(0.0f, 0.0f, 0.0f);
+	this->position += glm::vec3(x, y, z);
+	cnt_translate++;
 }
 
 void Model :: Scale(glm::vec3 scale) {
-	std::shared_ptr<Operation> opPtr = std::make_shared<OpScale>(scale);
-	operations.push_back(opPtr);
+	if (cnt_scale == 0)
+		this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
+	this->scale *= scale;
+	cnt_scale++;
 }
 
 void Model :: Scale(float x, float y, float z) {
-	std::shared_ptr<Operation> opPtr = std::make_shared<OpScale>(x, y, z);
-	operations.push_back(opPtr);
+	if (cnt_scale == 0)
+		this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
+	this->scale *= glm::vec3(x, y, z);
+	cnt_scale++;
 }
 
 void Model :: Rotate(float radian, glm::vec3 axis) {
-	std::shared_ptr<Operation> opPtr = std::make_shared<OpRotate>(axis, radian);
-	operations.push_back(opPtr);
+	if (cnt_rotate == 0)
+		this->rotation = glm::mat4(1.0f);
+	this->rotation = glm::rotate(this->rotation, radian, axis);
+	cnt_rotate++;
 }

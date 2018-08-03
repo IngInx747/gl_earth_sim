@@ -1,7 +1,6 @@
 #include <Primitives.h>
 #include <Texture.h>
 #include <ShaderProgram.h>
-#include <Operation.h>
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
@@ -62,11 +61,10 @@ void Base2D :: draw(ShaderProgram & shader) {
 
 	// Manipulate transformation operations
 	glm::mat4 modelMatrix(1.0f);
-	for (auto opPtr : operations)
-		opPtr.get()->operate(modelMatrix);
-
+	modelMatrix = glm::translate(modelMatrix, position);
+	modelMatrix = glm::scale(modelMatrix, scale);
+	modelMatrix = rotation * modelMatrix;
 	// Clear transformation operations
-	operations.clear();
 	cnt_translate = 0;
 	cnt_scale = 0;
 	cnt_rotate = 0;
@@ -110,28 +108,38 @@ void Base2D :: addTexture(const std::string path) {
 }
 
 void Base2D :: Translate(glm::vec3 position) {
-	std::shared_ptr<Operation> opPtr = std::make_shared<OpTranslate>(position);
-	operations.push_back(opPtr);
+	if (cnt_translate == 0)
+		this->position = glm::vec3(0.0f, 0.0f, 0.0f);
+	this->position += position;
+	cnt_translate++;
 }
 
 void Base2D :: Translate(float x, float y, float z) {
-	std::shared_ptr<Operation> opPtr = std::make_shared<OpTranslate>(x, y, z);
-	operations.push_back(opPtr);
+	if (cnt_translate == 0)
+		this->position = glm::vec3(0.0f, 0.0f, 0.0f);
+	this->position += glm::vec3(x, y, z);
+	cnt_translate++;
 }
 
 void Base2D :: Scale(glm::vec2 scale) {
-	std::shared_ptr<Operation> opPtr = std::make_shared<OpScale>(scale.x, scale.y, 1.0f);
-	operations.push_back(opPtr);
+	if (cnt_scale == 0)
+		this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
+	this->scale *= glm::vec3(scale.x, scale.y, 1.0f);
+	cnt_scale++;
 }
 
 void Base2D :: Scale(float x, float y) {
-	std::shared_ptr<Operation> opPtr = std::make_shared<OpScale>(x, y, 1.0f);
-	operations.push_back(opPtr);
+	if (cnt_scale == 0)
+		this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
+	this->scale *= glm::vec3(x, y, 1.0f);
+	cnt_scale++;
 }
 
 void Base2D :: Rotate(float radian, glm::vec3 axis) {
-	std::shared_ptr<Operation> opPtr = std::make_shared<OpRotate>(axis, radian);
-	operations.push_back(opPtr);
+	if (cnt_rotate == 0)
+		this->rotation = glm::mat4(1.0f);
+	this->rotation = glm::rotate(this->rotation, radian, axis);
+	cnt_rotate++;
 }
 
 /*************************************************
@@ -225,11 +233,10 @@ void Base3D :: draw(ShaderProgram & shader) {
 
 	// Manipulate transformation operations
 	glm::mat4 modelMatrix(1.0f);
-	for (auto opPtr : operations)
-		opPtr.get()->operate(modelMatrix);
-
+	modelMatrix = glm::translate(modelMatrix, position);
+	modelMatrix = glm::scale(modelMatrix, scale);
+	modelMatrix = rotation * modelMatrix;
 	// Clear transformation operations
-	operations.clear();
 	cnt_translate = 0;
 	cnt_scale = 0;
 	cnt_rotate = 0;
@@ -300,32 +307,38 @@ void Base3D :: addTexture(const std::string path, TextureType type) {
 }
 
 void Base3D :: Translate(glm::vec3 position) {
-	if (cnt_translate == 0) this->position = glm::vec3(0.0f, 0.0f, 0.0f);
-	this->position += position; cnt_translate++;
-	std::shared_ptr<Operation> opPtr = std::make_shared<OpTranslate>(position);
-	operations.push_back(opPtr);
+	if (cnt_translate == 0)
+		this->position = glm::vec3(0.0f, 0.0f, 0.0f);
+	this->position += position;
+	cnt_translate++;
 }
 
 void Base3D :: Translate(float x, float y, float z) {
-	Translate(glm::vec3(x, y, z));
+	if (cnt_translate == 0)
+		this->position = glm::vec3(0.0f, 0.0f, 0.0f);
+	this->position += glm::vec3(x, y, z);
+	cnt_translate++;
 }
 
 void Base3D :: Scale(glm::vec3 scale) {
-	if (cnt_scale == 0) this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
-	this->scale *= scale; cnt_scale++;
-	std::shared_ptr<Operation> opPtr = std::make_shared<OpScale>(scale);
-	operations.push_back(opPtr);
+	if (cnt_scale == 0)
+		this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
+	this->scale *= scale;
+	cnt_scale++;
 }
 
 void Base3D :: Scale(float x, float y, float z) {
-	Scale(glm::vec3(x, y, z));
+	if (cnt_scale == 0)
+		this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
+	this->scale *= glm::vec3(x, y, z);
+	cnt_scale++;
 }
 
 void Base3D :: Rotate(float radian, glm::vec3 axis) {
-	if (cnt_rotate == 0) this->rotation = glm::mat4(1.0f);
-	this->rotation = glm::rotate(this->rotation, radian, axis); cnt_rotate++;
-	std::shared_ptr<Operation> opPtr = std::make_shared<OpRotate>(axis, radian);
-	operations.push_back(opPtr);
+	if (cnt_rotate == 0)
+		this->rotation = glm::mat4(1.0f);
+	this->rotation = glm::rotate(this->rotation, radian, axis);
+	cnt_rotate++;
 }
 
 /*************************************************

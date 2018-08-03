@@ -2,7 +2,6 @@
 #define PRIMITIVES_H
 
 #include <ShaderProgram.h>
-#include <Operation.h>
 #include <Texture.h>
 #include <Mesh.h>
 
@@ -39,9 +38,6 @@ public:
 protected:
 	/** Render Data */
 	unsigned int vbo, ebo, vao;
-
-	/** Trasformation */
-	std::vector<std::shared_ptr<Operation> > operations;
 
 	/** Geometry params */
 	glm::vec3 position;
@@ -86,9 +82,6 @@ public:
 protected:
 	/** Render Data */
 	unsigned int vbo, ebo, vao;
-
-	/** Trasformation */
-	std::vector<std::shared_ptr<Operation> > operations;
 
 	/** Geometry params */
 	glm::vec3 position;

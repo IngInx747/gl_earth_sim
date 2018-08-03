@@ -13,7 +13,6 @@
 #include <assimp/postprocess.h>
 
 #include <ShaderProgram.h>
-#include <Operation.h>
 #include <Texture.h>
 #include <Mesh.h>
 
@@ -37,14 +36,13 @@ private:
 	bool gammaCorrection;
 	std::vector<Texture> textures_loaded; // store loaded textures to avoid loading twice
 
-	/** Trasformation */
-	std::vector<std::shared_ptr<Operation> > operations;
-
 	/** Geometry params */
-	// TODO: save geometry params each frame
 	glm::vec3 position;
 	glm::vec3 scale;
 	glm::mat4 rotation;
+	unsigned int cnt_translate;
+	unsigned int cnt_scale;
+	unsigned int cnt_rotate;
 
 	/** Methods */
 	void loadModel(std::string & path);
