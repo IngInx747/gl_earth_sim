@@ -239,9 +239,9 @@ void renderScene(Shader & shader) {
 	// moon
 	float moonTrjRadius = 20.0f;
 	glm::vec3 moonPos(
-		moonTrjRadius * glm::cos(currentTime * angularVelocity / 5.0f),
+		moonTrjRadius * glm::cos(currentTime * angularVelocity / 3.0f),
 		0.0f,
-		moonTrjRadius * glm::sin(currentTime * angularVelocity / 5.0f));
+		moonTrjRadius * glm::sin(currentTime * angularVelocity / 3.0f));
 	
 	// Draw scene
 	glm::mat4 modelMatrix;
