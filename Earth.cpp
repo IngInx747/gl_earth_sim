@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <memory>
 
 /** Basic GLFW header */
 //#include <GL/glew.h>	// Important - this header must come before glfw3 header
@@ -25,22 +26,19 @@
 #include <Model.h>
 #include <Primitives.h>
 #include <Skybox.h>
+#include <ParallelShadow.h>
 
 // Global Variables
 const char* APP_TITLE = "Earth Sim";
-const int gWindowWidth = 1024;
-const int gWindowHeight = 768;
+const int gWindowWidth = 1280;
+const int gWindowHeight = 720;
 GLFWwindow* gWindow = NULL;
 
 // Camera system
 Camera camera(glm::vec3(0.0f, 0.0f, 30.0f));
-bool firstMouse = true;
-float lastX = gWindowWidth / 2;
-float lastY = gWindowHeight / 2;
 
-// FPS
-float deltaTime = 0.0f;
-float lastFrame = 0.0f;
+// Shader control
+bool enableTorch = true;
 
 // Function prototypes
 void processInput(GLFWwindow* window);
@@ -49,6 +47,12 @@ void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 void glfw_onFramebufferSize(GLFWwindow* window, int width, int height);
 void showFPS(GLFWwindow* window);
 bool initOpenGL();
+void renderScene(Shader & shader);
+
+//-----------------------------------------------------------------------------
+// Models
+//-----------------------------------------------------------------------------
+std::shared_ptr<Model> pObjEarth, pObjMoon;
 
 //-----------------------------------------------------------------------------
 // Main Application Entry Point
@@ -62,14 +66,19 @@ int main() {
 	}
 
 	// Shader loader
-	ShaderProgram objectShader, skyboxShader;
-	objectShader.loadShaders("shaders/earth.vert",  "shaders/earth.frag");
+	Shader objectShader, skyboxShader, shadowShader;
+	objectShader.loadShaders("shaders/object.vert",  "shaders/object.frag");
 	skyboxShader.loadShaders("shaders/skybox.vert", "shaders/skybox.frag");
+	shadowShader.loadShaders("shaders/shadow.vert", "shaders/shadow.frag");
 
 
 
 	// Model loader
-	Model objectModel("Resources/earth/earth.obj");
+	pObjEarth = std::make_shared<Model> ("Resources/earth/earth.obj");
+	pObjMoon  = std::make_shared<Model> ("Resources/planet/planet.obj");
+
+	// Shadow
+	ParallelShadow shadowMap;
 
 
 
@@ -116,22 +125,12 @@ int main() {
 	objectShader.setUniform("uDirectionalLight.ambient", 0.0f, 0.0f, 0.0f);
 	objectShader.setUniform("uDirectionalLight.diffuse", 1.0f, 1.0f, 1.0f);
 	objectShader.setUniform("uDirectionalLight.specular", 0.0f, 0.0f, 0.0f);
-	// Point light
-	//for (int i=0; i<4; i++) {
-	//	objectShader.setUniform(("uPointLights[" + std::to_string(i) +"].position").c_str(),  pointLightPos[i]);
-	//	objectShader.setUniform(("uPointLights[" + std::to_string(i) +"].ambient").c_str(),   0.2f, 0.2f, 0.2f);
-	//	objectShader.setUniform(("uPointLights[" + std::to_string(i) +"].diffuse").c_str(),   1.0f, 1.0f, 1.0f);
-	//	objectShader.setUniform(("uPointLights[" + std::to_string(i) +"].specular").c_str(),  1.0f, 1.0f, 1.0f);
-	//	objectShader.setUniform(("uPointLights[" + std::to_string(i) +"].constant").c_str(),  1.0f);
-	//	objectShader.setUniform(("uPointLights[" + std::to_string(i) +"].linear").c_str(),    0.09f);
-	//	objectShader.setUniform(("uPointLights[" + std::to_string(i) +"].quadratic").c_str(), 0.032f);
-	//}
 	// Spot light
 	objectShader.setUniform("uSpotLight.innerCutOff", glm::cos(glm::radians(12.5f)));
 	objectShader.setUniform("uSpotLight.outerCutOff", glm::cos(glm::radians(17.5f)));
 	objectShader.setUniform("uSpotLight.ambient", 0.0f, 0.0f, 0.0f);
 	objectShader.setUniform("uSpotLight.diffuse", 1.0f, 1.0f, 1.0f);
-	objectShader.setUniform("uSpotLight.specular", 0.0f, 0.0f, 0.0f);
+	objectShader.setUniform("uSpotLight.specular", 1.0f, 1.0f, 1.0f);
 	objectShader.setUniform("uSpotLight.constant", 1.0f);
 	objectShader.setUniform("uSpotLight.linear", 0.09f);
 	objectShader.setUniform("uSpotLight.quadratic", 0.032f);
@@ -139,21 +138,12 @@ int main() {
 
 
 	// Camera global
-	float width_height_ratio = (float)gWindowWidth / (float)gWindowHeight;
-	glm::mat4 projection = glm::perspective(glm::radians(camera.fov), width_height_ratio, 0.1f, 100.0f);
-	//projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 100.0f);
-	objectShader.use();
-	objectShader.setUniform("uProjection", projection);
+	float aspect = (float)gWindowWidth / (float)gWindowHeight;
 
 
 
 	// Rendering loop
 	while (!glfwWindowShouldClose(gWindow)) {
-
-		// Per-frame time
-		float currentFrame = (float) glfwGetTime();
-		deltaTime = currentFrame - lastFrame;
-		lastFrame = currentFrame;
 
 		// Display FPS on title
 		showFPS(gWindow);
@@ -161,49 +151,64 @@ int main() {
 		// Key input
 		processInput(gWindow);
 
-		// Clear the screen
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-
 
 
 		// Create transformations
 		glm::mat4 view = camera.getViewMatrix();
+		glm::mat4 projection = glm::perspective(glm::radians(camera.fov), aspect, 0.1f, 100.0f);
+		//glm::mat4 projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 100.0f);
+
+
+
+		/** Shadow */
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+		// get light transformation
+		glm::mat4 lightProjection, lightView;
+		float near_plane = 1.0f, far_plane = 100.0f;
+		lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+		lightView = glm::lookAt(glm::vec3(50.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+		// render scene from light's point of view
+		shadowShader.use();
+		shadowShader.setUniform("uView", lightView);
+		shadowShader.setUniform("uProjection", lightProjection);
+		// get shadow map
+		glViewport(0, 0, shadowMap.width, shadowMap.height);
+		shadowMap.Bind();
+		glClear(GL_DEPTH_BUFFER_BIT);
+		glCullFace(GL_FRONT);
+		renderScene(shadowShader);
+		glCullFace(GL_BACK);
+		shadowMap.Unbind();
+
+
+
+		/** General scene */
+		#ifdef __APPLE__
+		glViewport(0, 0, 2 * gWindowWidth, 2 * gWindowHeight);
+		#else
+		glViewport(0, 0, gWindowWidth, gWindowHeight);
+		#endif
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		// Skybox
+		glm::mat4 staticView = glm::mat4(glm::mat3(view)); // remove translation composition
+		skybox.Draw(skyboxShader, staticView, projection);
+		// Object shader
 		objectShader.use();
 		objectShader.setUniform("uView", view);
-
+		objectShader.setUniform("uProjection", projection);
+		objectShader.setUniform("uCameraPos", camera.position);
 		// Spot light
-		objectShader.use();
-		objectShader.setUniform("uCameraPos",           camera.position);
+		objectShader.setUniform("uEnableTorch", enableTorch);
 		objectShader.setUniform("uSpotLight.position",  camera.position);
 		objectShader.setUniform("uSpotLight.direction", camera.front);
-
-
-
-		/** Skybox */
-		view = glm::mat4(glm::mat3(camera.getViewMatrix())); // remove translation composition
-		skybox.Draw(skyboxShader, view, projection);
-
-
-
-		// Set geological configurations
-		float currentTime = (float)glfwGetTime();
-		float angularVelocity = glm::radians(10.0f);
-		glm::vec3 spinAxis(
-			glm::sin(glm::radians(23.5f)) * glm::cos(currentTime * angularVelocity / 30.0f),
-			glm::cos(glm::radians(23.5f)),
-			glm::sin(glm::radians(23.5f)) * glm::sin(currentTime * angularVelocity / 30.0f));
-		glm::vec3 deviateAxis(
-			glm::sin(currentTime * angularVelocity / 30.0f),
-			0.0f,
-			-glm::cos(currentTime * angularVelocity / 30.0f));
-		
-		// Set trasformation queue and draw
-		objectModel.Translate(glm::vec3(0.0f, 0.0f, -1.0f));
-		objectModel.Scale(glm::vec3(0.02f, 0.02f, 0.02f));
-		objectModel.Rotate(currentTime * angularVelocity, spinAxis);
-		objectModel.Rotate(glm::radians(23.5f), deviateAxis);
-		objectModel.draw(objectShader);
+		// Shadow map
+		objectShader.setUniform("uLightSpaceMatrix", lightProjection * lightView);
+		objectShader.setUniform("uShadowMap", (int) shadowMap.active_texture_unit);
+		// Draw scene
+		glActiveTexture(GL_TEXTURE0 + shadowMap.active_texture_unit);
+		glBindTexture(GL_TEXTURE_2D, shadowMap.TID());
+		renderScene(objectShader);
 
 
 
@@ -215,6 +220,54 @@ int main() {
 	glfwTerminate();
 
 	return 0;
+}
+
+void renderScene(Shader & shader) {
+
+	// Set geological configurations
+	float currentTime = (float)glfwGetTime();
+	float angularVelocity = glm::radians(10.0f);
+	// earth
+	glm::vec3 spinAxis(
+		glm::sin(glm::radians(23.5f)) * glm::cos(currentTime * angularVelocity / 30.0f),
+		glm::cos(glm::radians(23.5f)),
+		glm::sin(glm::radians(23.5f)) * glm::sin(currentTime * angularVelocity / 30.0f));
+	glm::vec3 deviateAxis(
+		glm::sin(currentTime * angularVelocity / 30.0f),
+		0.0f,
+		-glm::cos(currentTime * angularVelocity / 30.0f));
+	// moon
+	float moonTrjRadius = 20.0f;
+	glm::vec3 moonPos(
+		moonTrjRadius * glm::cos(currentTime * angularVelocity / 5.0f),
+		0.0f,
+		moonTrjRadius * glm::sin(currentTime * angularVelocity / 5.0f));
+	
+	// Draw scene
+	glm::mat4 modelMatrix;
+
+	modelMatrix = glm::mat4(1.0f);
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, -1.0f));
+	modelMatrix = glm::scale(modelMatrix, glm::vec3(0.02f, 0.02f, 0.02f));
+	modelMatrix = glm::rotate(modelMatrix, currentTime * angularVelocity, spinAxis);
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(23.5f), deviateAxis);
+
+	shader.use();
+	shader.setUniform("uModel", modelMatrix);
+	shader.setUniform("uEnableNormal", true);
+	shader.setUniform("uEnableEmission", true);
+	pObjEarth.get()->Draw(shader);
+
+	modelMatrix = glm::mat4(1.0f);
+	modelMatrix = glm::translate(modelMatrix, moonPos);
+	modelMatrix = glm::scale(modelMatrix, glm::vec3(0.5f, 0.5f, 0.5f));
+	modelMatrix = glm::rotate(modelMatrix, currentTime * angularVelocity, glm::vec3(0.0f, 1.0f, 0.0f));
+
+	shader.use();
+	shader.setUniform("uModel", modelMatrix);
+	shader.setUniform("uEnableNormal", false);
+	shader.setUniform("uEnableEmission", false);
+	pObjMoon.get()->Draw(shader);
 }
 
 //-----------------------------------------------------------------------------
@@ -267,8 +320,11 @@ bool initOpenGL() {
 	// Define the viewport dimensions
 	//glViewport(0, 0, gWindowWidth, gWindowHeight);
 
-	// Configure global OpenGL state	
+	// Depth test
 	glEnable(GL_DEPTH_TEST);
+
+	// Face culling
+	glEnable(GL_CULL_FACE);
 
 	// Blending
 	glEnable(GL_BLEND);
@@ -294,6 +350,12 @@ void processInput(GLFWwindow* window) {
 	else
 		camera.processAccerlate(false);
 
+	static float deltaTime = 0.0f;
+	static float lastFrame = 0.0f;
+	// Per-frame time
+	float currentFrame = (float) glfwGetTime();
+	deltaTime = currentFrame - lastFrame;
+	lastFrame = currentFrame;
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
 		camera.processKeyboard(FORWARD, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
@@ -313,12 +375,19 @@ void processInput(GLFWwindow* window) {
 		if (gWireframe) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		else glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
+
+	if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
+		enableTorch = !enableTorch;
 }
 
 //-----------------------------------------------------------------------------
 // Is called whenever mouse movement is detected via GLFW
 //-----------------------------------------------------------------------------
 void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
+
+	static bool  firstMouse = true;
+	static float lastX = gWindowWidth / 2;
+	static float lastY = gWindowHeight / 2;
 
 	if (firstMouse) {
 		lastX = xpos;

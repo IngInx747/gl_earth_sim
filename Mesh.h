@@ -37,8 +37,12 @@ public:
 		std::vector<Texture> textures);
 	//~Mesh();
 
-	void draw(ShaderProgram & shader);
-	void deleteBuffers();
+	void Draw(Shader & shader);
+	void DeleteBuffers();
+
+	GLuint VAO() const { return vao; }
+	GLuint VBO() const { return vbo; }
+	GLuint EBO() const { return ebo; }
 
 private:
 	/** Render Data */

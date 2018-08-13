@@ -35,12 +35,20 @@ unsigned int LoadTexture(const std::string filename, bool gamma) {
 
 	else {
 		GLenum imageFormat;
-		if (nrComponents == 1) imageFormat = GL_RED;
-		else if (nrComponents == 3) imageFormat = GL_RGB;
-		else if (nrComponents == 4) imageFormat = GL_RGBA;
+		GLenum dataFormat;
+		if (nrComponents == 1) {
+			imageFormat = GL_RED;
+			dataFormat = GL_RED;
+		} else if (nrComponents == 3) {
+			imageFormat = gamma ? GL_SRGB : GL_RGB;
+			dataFormat = GL_RGB;
+		} else if (nrComponents == 4) {
+			imageFormat = gamma ? GL_SRGB_ALPHA : GL_RGBA;
+			dataFormat = GL_RGBA;
+		}
 
 		glBindTexture(GL_TEXTURE_2D, textureID);
-		glTexImage2D(GL_TEXTURE_2D, 0, imageFormat, width, height, 0, imageFormat, GL_UNSIGNED_BYTE, data);
+		glTexImage2D(GL_TEXTURE_2D, 0, imageFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

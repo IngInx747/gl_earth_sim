@@ -8,7 +8,6 @@
 #include <glm/gtx/norm.hpp>
 
 #include <iostream>
-#include <memory>
 #include <vector>
 #include <string>
 #include <map>
@@ -24,9 +23,9 @@
 *************************************************/
 
 Base2D :: Base2D() {
-	position = glm::vec3(0.0f, 0.0f, 0.0f);
-	scale    = glm::vec3(1.0f, 1.0f, 1.0f);
-	rotation = glm::mat4(1.0f);
+	//position = glm::vec3(0.0f, 0.0f, 0.0f);
+	//scale    = glm::vec3(1.0f, 1.0f, 1.0f);
+	//rotation = glm::mat4(1.0f);
 }
 
 Base2D :: ~Base2D() {
@@ -57,9 +56,10 @@ void Base2D :: setup() {
 	glBindVertexArray(0); // Release control of vao
 }
 
-void Base2D :: draw(ShaderProgram & shader) {
+void Base2D :: Draw(Shader & shader) {
 
-	// Manipulate transformation operations
+	/**
+	// Bind Geometric params
 	glm::mat4 modelMatrix(1.0f);
 	modelMatrix = glm::translate(modelMatrix, position);
 	modelMatrix = glm::scale(modelMatrix, scale);
@@ -67,16 +67,40 @@ void Base2D :: draw(ShaderProgram & shader) {
 	// Clear transformation operations
 	cnt_translate = 0;
 	cnt_scale = 0;
-	cnt_rotate = 0;
-	
-	// Bind shader with transformation
+	cnt_rotate = 0;*/
+
 	shader.use();
-	shader.setUniform("uModel", modelMatrix);
 
 	// Bind textures
+	unsigned int diffuseNr  = 1;
+	unsigned int specularNr = 1;
+	unsigned int normalNr   = 1;
+	unsigned int heightNr   = 1;
+	unsigned int emissionNr = 1;
+	unsigned int ambientNr  = 1;
+
 	for (unsigned int i=0; i<textures.size(); i++) {
-		glActiveTexture(GL_TEXTURE0 + i);
-		shader.setUniform("uMaterial.texture" + std::to_string(i + 1), (int)i);
+		
+		glActiveTexture(GL_TEXTURE0 + i); // activate proper texture unit before binding
+
+		std::string number;
+		TextureType type = textures[i].type;
+
+		if (type == TEX_DIFFUSE)
+			number = std::to_string(diffuseNr++);
+		else if (type == TEX_SPECULAR)
+			number = std::to_string(specularNr++);
+		else if (type == TEX_NORMAL)
+			number = std::to_string(normalNr++);
+		else if (type == TEX_HEIGHT)
+			number = std::to_string(heightNr++);
+		else if (type == TEX_EMISSION)
+			number = std::to_string(emissionNr++);
+		else if (type == TEX_AMBIENT)
+			number = std::to_string(ambientNr++);
+
+		shader.setUniform("uMaterial." + TextureTypeName[type] + number, (int)i);
+		// Bind the texture
 		glBindTexture(GL_TEXTURE_2D, textures[i].id);
 	}
 	glActiveTexture(GL_TEXTURE0);
@@ -89,17 +113,18 @@ void Base2D :: draw(ShaderProgram & shader) {
 	glActiveTexture(GL_TEXTURE0);
 }
 
-void Base2D :: addTexture(unsigned int tid) {
+void Base2D :: AddTexture(unsigned int tid) { // for frame buffer
 	Texture texture;
 	texture.id = tid;
 	if (texture.id != 0) textures.push_back(texture);
 }
 
-void Base2D :: addTexture(const std::string path) {
+void Base2D :: AddTexture(const std::string path, TextureType type, bool gamma) {
 	
 	Texture texture;
-	texture.id   = LoadTexture(path);
+	texture.id   = LoadTexture(path, gamma);
 	texture.path = path;
+	texture.type = type;
 	if (texture.id != 0) {
 		textures.push_back(texture);
 		std::cout << "Base2D::loadTextures: " << texture.id << "\t"
@@ -107,46 +132,11 @@ void Base2D :: addTexture(const std::string path) {
 	}
 }
 
-void Base2D :: Translate(glm::vec3 position) {
-	if (cnt_translate == 0)
-		this->position = glm::vec3(0.0f, 0.0f, 0.0f);
-	this->position += position;
-	cnt_translate++;
-}
-
-void Base2D :: Translate(float x, float y, float z) {
-	if (cnt_translate == 0)
-		this->position = glm::vec3(0.0f, 0.0f, 0.0f);
-	this->position += glm::vec3(x, y, z);
-	cnt_translate++;
-}
-
-void Base2D :: Scale(glm::vec2 scale) {
-	if (cnt_scale == 0)
-		this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
-	this->scale *= glm::vec3(scale.x, scale.y, 1.0f);
-	cnt_scale++;
-}
-
-void Base2D :: Scale(float x, float y) {
-	if (cnt_scale == 0)
-		this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
-	this->scale *= glm::vec3(x, y, 1.0f);
-	cnt_scale++;
-}
-
-void Base2D :: Rotate(float radian, glm::vec3 axis) {
-	if (cnt_rotate == 0)
-		this->rotation = glm::mat4(1.0f);
-	this->rotation = glm::rotate(this->rotation, radian, axis);
-	cnt_rotate++;
-}
-
 /*************************************************
 * Quad
 *************************************************/
 
-std::vector<std::vector<float> > quad_vertices = {
+std::vector<std::vector<float> > Quad :: quad_vertices = {
 	// positions    // texCoords
 	{-1.0f, -1.0f,  0.0f, 0.0f},
 	{ 1.0f, -1.0f,  1.0f, 0.0f},
@@ -154,7 +144,7 @@ std::vector<std::vector<float> > quad_vertices = {
 	{-1.0f,  1.0f,  0.0f, 1.0f}
 };
 
-std::vector<unsigned int> quad_elements = {
+std::vector<unsigned int> Quad :: quad_elements = {
 	0,   1,   2,
 	2,   3,   0
 };
@@ -190,9 +180,9 @@ Quad :: Quad() {
 *************************************************/
 
 Base3D :: Base3D() {
-	position = glm::vec3(0.0f, 0.0f, 0.0f);
-	scale    = glm::vec3(1.0f, 1.0f, 1.0f);
-	rotation = glm::mat4(1.0f);
+	//position = glm::vec3(0.0f, 0.0f, 0.0f);
+	//scale    = glm::vec3(1.0f, 1.0f, 1.0f);
+	//rotation = glm::mat4(1.0f);
 }
 
 Base3D :: ~Base3D() {
@@ -229,9 +219,10 @@ void Base3D :: setup() {
 	glBindVertexArray(0); // Release control of vao
 }
 
-void Base3D :: draw(ShaderProgram & shader) {
-
-	// Manipulate transformation operations
+void Base3D :: Draw(Shader & shader) {
+	
+	/**
+	// Bind Geometric params
 	glm::mat4 modelMatrix(1.0f);
 	modelMatrix = glm::translate(modelMatrix, position);
 	modelMatrix = glm::scale(modelMatrix, scale);
@@ -239,11 +230,9 @@ void Base3D :: draw(ShaderProgram & shader) {
 	// Clear transformation operations
 	cnt_translate = 0;
 	cnt_scale = 0;
-	cnt_rotate = 0;
-	
-	// Bind shader with transformation
+	cnt_rotate = 0;*/
+
 	shader.use();
-	shader.setUniform("uModel", modelMatrix);
 
 	// Bind textures
 	unsigned int diffuseNr  = 1;
@@ -287,16 +276,16 @@ void Base3D :: draw(ShaderProgram & shader) {
 	glActiveTexture(GL_TEXTURE0);
 }
 
-void Base3D :: addTexture(unsigned int tid) {
+void Base3D :: AddTexture(unsigned int tid) {
 	Texture texture;
 	texture.id = tid;
 	if (texture.id != 0) textures.push_back(texture);
 }
 
-void Base3D :: addTexture(const std::string path, TextureType type) {
+void Base3D :: AddTexture(const std::string path, TextureType type, bool gamma) {
 	
 	Texture texture;
-	texture.id   = LoadTexture(path);
+	texture.id   = LoadTexture(path, gamma);
 	texture.type = type;
 	texture.path = path;
 	if (texture.id != 0) {
@@ -306,46 +295,48 @@ void Base3D :: addTexture(const std::string path, TextureType type) {
 	}
 }
 
-void Base3D :: Translate(glm::vec3 position) {
+/**
+void Base2D :: Translate(glm::vec3 position) {
 	if (cnt_translate == 0)
 		this->position = glm::vec3(0.0f, 0.0f, 0.0f);
 	this->position += position;
 	cnt_translate++;
 }
 
-void Base3D :: Translate(float x, float y, float z) {
+void Base2D :: Translate(float x, float y, float z) {
 	if (cnt_translate == 0)
 		this->position = glm::vec3(0.0f, 0.0f, 0.0f);
 	this->position += glm::vec3(x, y, z);
 	cnt_translate++;
 }
 
-void Base3D :: Scale(glm::vec3 scale) {
+void Base2D :: Scale(glm::vec2 scale) {
 	if (cnt_scale == 0)
 		this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
-	this->scale *= scale;
+	this->scale *= glm::vec3(scale.x, scale.y, 1.0f);
 	cnt_scale++;
 }
 
-void Base3D :: Scale(float x, float y, float z) {
+void Base2D :: Scale(float x, float y) {
 	if (cnt_scale == 0)
 		this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
-	this->scale *= glm::vec3(x, y, z);
+	this->scale *= glm::vec3(x, y, 1.0f);
 	cnt_scale++;
 }
 
-void Base3D :: Rotate(float radian, glm::vec3 axis) {
+void Base2D :: Rotate(float radian, glm::vec3 axis) {
 	if (cnt_rotate == 0)
 		this->rotation = glm::mat4(1.0f);
 	this->rotation = glm::rotate(this->rotation, radian, axis);
 	cnt_rotate++;
 }
+*/
 
 /*************************************************
 * Plane
 *************************************************/
 
-std::vector<std::vector<float> > plane_vertices = {
+std::vector<std::vector<float> > Plane :: plane_vertices = {
 	// positions        // normals         // texCoords
 	{-0.5,  0.0, -0.5,   0.0,  1.0,  0.0,   0.0f, 0.0f},
 	{ 0.5,  0.0, -0.5,   0.0,  1.0,  0.0,   1.0f, 0.0f},
@@ -353,7 +344,7 @@ std::vector<std::vector<float> > plane_vertices = {
 	{-0.5,  0.0,  0.5,   0.0,  1.0,  0.0,   0.0f, 1.0f}
 };
 
-std::vector<unsigned int> plane_elements = {
+std::vector<unsigned int> Plane :: plane_elements = {
 	0,   1,   2,
 	2,   3,   0
 };
@@ -388,7 +379,7 @@ Plane :: Plane() {
 * Cube
 *************************************************/
 
-std::vector<std::vector<float> > cube_vertices = {
+std::vector<std::vector<float> > Cube :: cube_vertices = {
 	// positions        // normals         // texCoords
 	// front
 	{-0.5, -0.5,  0.5,   0.0,  0.0,  1.0,   0.0f, 0.0f},
@@ -397,9 +388,9 @@ std::vector<std::vector<float> > cube_vertices = {
 	{-0.5,  0.5,  0.5,   0.0,  0.0,  1.0,   0.0f, 1.0f},
 	// back
 	{-0.5, -0.5, -0.5,   0.0,  0.0, -1.0,   0.0f, 0.0f},
-	{ 0.5, -0.5, -0.5,   0.0,  0.0, -1.0,   1.0f, 0.0f},
+	{-0.5,  0.5, -0.5,   0.0,  0.0, -1.0,   1.0f, 0.0f},
 	{ 0.5,  0.5, -0.5,   0.0,  0.0, -1.0,   1.0f, 1.0f},
-	{-0.5,  0.5, -0.5,   0.0,  0.0, -1.0,   0.0f, 1.0f},
+	{ 0.5, -0.5, -0.5,   0.0,  0.0, -1.0,   0.0f, 1.0f},
 	// left
 	{-0.5, -0.5, -0.5,  -1.0,  0.0,  0.0,   0.0f, 0.0f},
 	{-0.5, -0.5,  0.5,  -1.0,  0.0,  0.0,   1.0f, 0.0f},
@@ -422,7 +413,7 @@ std::vector<std::vector<float> > cube_vertices = {
 	{-0.5, -0.5, -0.5,   0.0, -1.0,  0.0,   0.0f, 1.0f}
 };
 
-std::vector<unsigned int> cube_elements = {
+std::vector<unsigned int> Cube :: cube_elements = {
 	// front
 	0,   1,   2,
 	2,   3,   0,
@@ -466,33 +457,25 @@ Cube :: Cube() {
 	
 	indices = cube_elements;
 
-	FaceCenters = {
-		{ 0.0,  0.0,  0.5}, // front
-		{ 0.0,  0.0, -0.5}, // back
-		{-0.5,  0.0,  0.0}, // left
-		{ 0.5,  0.0,  0.0}, // right
-		{ 0.0,  0.5,  0.0}, // top
-		{ 0.0, -0.5,  0.0}, // buttom
-	};
-	
 	setup();
 }
 
-void Cube :: update(glm::vec3 camPos) {
+std::vector<glm::vec3> TrCube :: FaceCenters = {
+	{ 0.0,  0.0,  0.5}, // front
+	{ 0.0,  0.0, -0.5}, // back
+	{-0.5,  0.0,  0.0}, // left
+	{ 0.5,  0.0,  0.0}, // right
+	{ 0.0,  0.5,  0.0}, // top
+	{ 0.0, -0.5,  0.0}, // buttom
+};
+
+void TrCube :: UpdateRenderOrder(glm::vec3 & camPos, glm::mat4 & modelMatrix) {
 
 	std::map<float, int> distdict;
 
-	std::vector<glm::vec3> FaceCentersLocal(FaceCenters);
-
-	for (glm::vec3 & fc : FaceCentersLocal) {
-		glm::vec4 fc4(fc.x, fc.y, fc.z, 1.0);
-		fc4 = rotation * fc4;
-		fc = glm::vec3(fc4.x, fc4.y, fc4.z);
-	}
-
-	for (int i=0; i<FaceCentersLocal.size(); i++) {
-		glm::vec3 fc = position + FaceCentersLocal[i];
-		float distance = glm::length2(camPos - fc);
+	for (int i=0; i<FaceCenters.size(); i++) {
+		glm::vec4 fc = modelMatrix * glm::vec4(FaceCenters[i], 1.0f);
+		float distance = glm::length2(camPos - glm::vec3(fc));
 		if (distdict.find(distance) == distdict.end())
 			distdict[distance] = i;
 		else
@@ -507,13 +490,47 @@ void Cube :: update(glm::vec3 camPos) {
 
 	for (auto it=distdict.rbegin(); it!=distdict.rend(); it++) {
 		int face_id = it->second;
-		for (int elem : face_elements) 
-			indices.push_back(elem + face_id * 4);
+		for (int e : face_elements) 
+			indices.push_back(e + face_id * 4);
 	}
-
-	//glBindBuffer(GL_ARRAY_BUFFER, vbo); // "bind" or set as the current buffer we are working with
-	//glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
 }
+
+/**
+void Base3D :: Translate(glm::vec3 position) {
+	if (cnt_translate == 0)
+		this->position = glm::vec3(0.0f, 0.0f, 0.0f);
+	this->position += position;
+	cnt_translate++;
+}
+
+void Base3D :: Translate(float x, float y, float z) {
+	if (cnt_translate == 0)
+		this->position = glm::vec3(0.0f, 0.0f, 0.0f);
+	this->position += glm::vec3(x, y, z);
+	cnt_translate++;
+}
+
+void Base3D :: Scale(glm::vec3 scale) {
+	if (cnt_scale == 0)
+		this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
+	this->scale *= scale;
+	cnt_scale++;
+}
+
+void Base3D :: Scale(float x, float y, float z) {
+	if (cnt_scale == 0)
+		this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
+	this->scale *= glm::vec3(x, y, z);
+	cnt_scale++;
+}
+
+void Base3D :: Rotate(float radian, glm::vec3 axis) {
+	if (cnt_rotate == 0)
+		this->rotation = glm::mat4(1.0f);
+	this->rotation = glm::rotate(this->rotation, radian, axis);
+	cnt_rotate++;
+}
+*/

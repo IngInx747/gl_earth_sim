@@ -14,38 +14,27 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <memory>
 
-Model :: Model(std::string path, bool gamma) : gammaCorrection(gamma) {
-
-	position = glm::vec3(0.0f, 0.0f, 0.0f);
-	scale    = glm::vec3(1.0f, 1.0f, 1.0f);
-	rotation = glm::mat4(1.0f);
+Model :: Model(std::string path, bool gamma)
+	: gammaCorrection(gamma)
+{
+	//position = glm::vec3(0.0f, 0.0f, 0.0f);
+	//scale    = glm::vec3(1.0f, 1.0f, 1.0f);
+	//rotation = glm::mat4(1.0f);
 
 	loadModel(path);
 }
 
 Model :: ~Model() {
 	for (Mesh & mesh : meshes)
-		mesh.deleteBuffers();
+		mesh.DeleteBuffers();
 }
 
-void Model :: draw(ShaderProgram & shader) {
-
-	// Bind Geometric params
-	glm::mat4 modelMatrix(1.0f);
-	modelMatrix = glm::translate(modelMatrix, position);
-	modelMatrix = glm::scale(modelMatrix, scale);
-	modelMatrix = rotation * modelMatrix;
-	cnt_translate = 0;
-	cnt_scale = 0;
-	cnt_rotate = 0;
+void Model :: Draw(Shader & shader) {
 
 	shader.use();
-	shader.setUniform("uModel", modelMatrix);
-
-	for (unsigned int i=0; i<meshes.size(); i++)
-		meshes[i].draw(shader);
+	for (Mesh & mesh : meshes)
+		mesh.Draw(shader);
 }
 
 void Model :: loadModel(std::string & path) {
@@ -203,11 +192,11 @@ Mesh Model :: processMesh(aiMesh * mesh, const aiScene * scene) {
 		textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
 		// normal maps
 		std::vector<Texture> normalMaps = loadTextures(material,
-			aiTextureType_NORMALS, TEX_NORMAL);
+			aiTextureType_HEIGHT, TEX_NORMAL); // aiTextureType_NORMALS
 		textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
 		// height maps
 		std::vector<Texture> heightMaps = loadTextures(material,
-			aiTextureType_HEIGHT, TEX_HEIGHT);
+			aiTextureType_AMBIENT, TEX_HEIGHT); // aiTextureType_HEIGHT
 		textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 		// emission maps
 		std::vector<Texture> emissionMaps = loadTextures(material,
@@ -250,7 +239,7 @@ std::vector<Texture> Model :: loadTextures(
 		if (skip) continue;
 
 		Texture texture;
-		texture.id = LoadTexture(directory + std::string(str.C_Str()));
+		texture.id = LoadTexture(directory + std::string(str.C_Str()), gammaCorrection);
 		texture.type = type;
 		texture.path = str.C_Str();
 		textures.push_back(texture);
@@ -268,6 +257,7 @@ std::vector<Texture> Model :: loadTextures(
 	return textures;
 }
 
+/**
 void Model :: Translate(glm::vec3 position) {
 	if (cnt_translate == 0)
 		this->position = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -302,3 +292,4 @@ void Model :: Rotate(float radian, glm::vec3 axis) {
 	this->rotation = glm::rotate(this->rotation, radian, axis);
 	cnt_rotate++;
 }
+*/

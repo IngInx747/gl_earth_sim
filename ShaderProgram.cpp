@@ -8,14 +8,23 @@ using std::string;
 //-----------------------------------------------------------------------------
 // Constructor
 //-----------------------------------------------------------------------------
-ShaderProgram::ShaderProgram()
+Shader :: Shader()
 	: mHandle(0)
 {}
+
+Shader :: Shader(
+		const char* vsFilename,
+		const char* fsFilename,
+		const char* gsFilename)
+	: mHandle(0)
+{
+	loadShaders(vsFilename, fsFilename, gsFilename);
+}
 
 //-----------------------------------------------------------------------------
 // Destructor
 //-----------------------------------------------------------------------------
-ShaderProgram::~ShaderProgram()
+Shader :: ~Shader()
 {
 	// Delete the program
 	glDeleteProgram(mHandle);
@@ -24,8 +33,11 @@ ShaderProgram::~ShaderProgram()
 //-----------------------------------------------------------------------------
 // Load vertex and fragment shaders, and if geometry shader exists
 //-----------------------------------------------------------------------------
-bool ShaderProgram::loadShaders(const char* vsFilename, const char* fsFilename, const char* gsFilename) {
-
+bool Shader::loadShaders(
+	const char* vsFilename,
+	const char* fsFilename,
+	const char* gsFilename)
+{
 	mHandle = glCreateProgram();
 	if (mHandle == 0) {
 		std::cerr << "Unable to create shader program!" << std::endl;
@@ -76,7 +88,7 @@ bool ShaderProgram::loadShaders(const char* vsFilename, const char* fsFilename, 
 // Opens and reads contents of ASCII file to a string.  Returns the string.
 // Not good for very large files.
 //-----------------------------------------------------------------------------
-string ShaderProgram::fileToString(const string& filename)
+string Shader :: fileToString(const string& filename)
 {
 	std::stringstream ss;
 	std::ifstream file;
@@ -104,7 +116,7 @@ string ShaderProgram::fileToString(const string& filename)
 //-----------------------------------------------------------------------------
 // Activate the shader program
 //-----------------------------------------------------------------------------
-void ShaderProgram::use()
+void Shader :: use()
 {
 	if (mHandle > 0)
 		glUseProgram(mHandle);
@@ -113,7 +125,7 @@ void ShaderProgram::use()
 //-----------------------------------------------------------------------------
 // Checks for shader compiler errors
 //-----------------------------------------------------------------------------
-void  ShaderProgram::checkCompileErrors(GLuint shader, ShaderType type)
+void  Shader :: checkCompileErrors(GLuint shader, ShaderType type)
 {
 	int status = 0;
 
@@ -151,7 +163,7 @@ void  ShaderProgram::checkCompileErrors(GLuint shader, ShaderType type)
 //-----------------------------------------------------------------------------
 // Returns the active shader program
 //-----------------------------------------------------------------------------
-GLuint ShaderProgram::getProgram() const
+GLuint Shader :: ID() const
 {
 	return mHandle;
 }
@@ -159,7 +171,7 @@ GLuint ShaderProgram::getProgram() const
 //-----------------------------------------------------------------------------
 // Sets a boolean shader uniform
 //-----------------------------------------------------------------------------
-void ShaderProgram::setUniform(const string& name, bool value)
+void Shader :: setUniform(const string& name, bool value)
 {
 	GLint loc = getUniformLocation(name.c_str());
 	glUniform1i(loc, (int) value);
@@ -168,7 +180,7 @@ void ShaderProgram::setUniform(const string& name, bool value)
 //-----------------------------------------------------------------------------
 // Sets an integer shader uniform
 //-----------------------------------------------------------------------------
-void ShaderProgram::setUniform(const string& name, int value)
+void Shader :: setUniform(const string& name, int value)
 {
 	GLint loc = getUniformLocation(name.c_str());
 	glUniform1i(loc, value);
@@ -177,7 +189,7 @@ void ShaderProgram::setUniform(const string& name, int value)
 //-----------------------------------------------------------------------------
 // Sets a float shader uniform
 //-----------------------------------------------------------------------------
-void ShaderProgram::setUniform(const string& name, float value)
+void Shader :: setUniform(const string& name, float value)
 {
 	GLint loc = getUniformLocation(name.c_str());
 	glUniform1f(loc, value);
@@ -186,13 +198,13 @@ void ShaderProgram::setUniform(const string& name, float value)
 //-----------------------------------------------------------------------------
 // Sets a glm::vec2 shader uniform
 //-----------------------------------------------------------------------------
-void ShaderProgram::setUniform(const string& name, const glm::vec2& v)
+void Shader :: setUniform(const string& name, const glm::vec2& v)
 {
 	GLint loc = getUniformLocation(name.c_str());
 	glUniform2fv(loc, 1, &v[0]);
 }
 
-void ShaderProgram::setUniform(const string& name, float x, float y)
+void Shader :: setUniform(const string& name, float x, float y)
 {
 	GLint loc = getUniformLocation(name.c_str());
 	glUniform2f(loc, x, y);
@@ -201,13 +213,13 @@ void ShaderProgram::setUniform(const string& name, float x, float y)
 //-----------------------------------------------------------------------------
 // Sets a glm::vec3 shader uniform
 //-----------------------------------------------------------------------------
-void ShaderProgram::setUniform(const string& name, const glm::vec3& v)
+void Shader :: setUniform(const string& name, const glm::vec3& v)
 {
 	GLint loc = getUniformLocation(name.c_str());
 	glUniform3fv(loc, 1, &v[0]);
 }
 
-void ShaderProgram::setUniform(const string& name, float x, float y, float z)
+void Shader :: setUniform(const string& name, float x, float y, float z)
 {
 	GLint loc = getUniformLocation(name.c_str());
 	glUniform3f(loc, x, y, z);
@@ -216,13 +228,13 @@ void ShaderProgram::setUniform(const string& name, float x, float y, float z)
 //-----------------------------------------------------------------------------
 // Sets a glm::vec4 shader uniform
 //-----------------------------------------------------------------------------
-void ShaderProgram::setUniform(const string& name, const glm::vec4& v)
+void Shader :: setUniform(const string& name, const glm::vec4& v)
 {
 	GLint loc = getUniformLocation(name.c_str());
 	glUniform4fv(loc, 1, &v[0]);
 }
 
-void ShaderProgram::setUniform(const string& name, float x, float y, float z, float w)
+void Shader :: setUniform(const string& name, float x, float y, float z, float w)
 {
 	GLint loc = getUniformLocation(name.c_str());
 	glUniform4f(loc, x, y, z, w);
@@ -231,7 +243,7 @@ void ShaderProgram::setUniform(const string& name, float x, float y, float z, fl
 //-----------------------------------------------------------------------------
 // Sets a glm::mat2 shader uniform
 //-----------------------------------------------------------------------------
-void ShaderProgram::setUniform(const string& name, const glm::mat2& m)
+void Shader :: setUniform(const string& name, const glm::mat2& m)
 {
 	GLint loc = getUniformLocation(name.c_str());
 	glUniformMatrix2fv(loc, 1, GL_FALSE, &m[0][0]);
@@ -240,7 +252,7 @@ void ShaderProgram::setUniform(const string& name, const glm::mat2& m)
 //-----------------------------------------------------------------------------
 // Sets a glm::mat3 shader uniform
 //-----------------------------------------------------------------------------
-void ShaderProgram::setUniform(const string& name, const glm::mat3& m)
+void Shader :: setUniform(const string& name, const glm::mat3& m)
 {
 	GLint loc = getUniformLocation(name.c_str());
 	glUniformMatrix3fv(loc, 1, GL_FALSE, &m[0][0]);
@@ -249,7 +261,7 @@ void ShaderProgram::setUniform(const string& name, const glm::mat3& m)
 //-----------------------------------------------------------------------------
 // Sets a glm::mat4 shader uniform
 //-----------------------------------------------------------------------------
-void ShaderProgram::setUniform(const string& name, const glm::mat4& m)
+void Shader :: setUniform(const string& name, const glm::mat4& m)
 {
 	GLint loc = getUniformLocation(name.c_str());
 	glUniformMatrix4fv(loc, 1, GL_FALSE, &m[0][0]);
@@ -259,7 +271,7 @@ void ShaderProgram::setUniform(const string& name, const glm::mat4& m)
 // Returns the uniform identifier given it's string name.
 // NOTE: Shader must be currently active first.
 //-----------------------------------------------------------------------------
-GLint ShaderProgram::getUniformLocation(const GLchar* name)
+GLint Shader :: getUniformLocation(const GLchar* name)
 {
 	std::map<string, GLint>::iterator it = mUniformLocations.find(name);
 

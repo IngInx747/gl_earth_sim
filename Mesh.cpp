@@ -45,7 +45,7 @@ void Mesh :: setup() {
 	glBindVertexArray(0); // Release control of vao
 }
 
-void Mesh :: draw(ShaderProgram & shader) {
+void Mesh :: Draw(Shader & shader) {
 
 	// Bind textures
 	unsigned int diffuseNr  = 1;
@@ -89,7 +89,7 @@ void Mesh :: draw(ShaderProgram & shader) {
 	glActiveTexture(GL_TEXTURE0);
 }
 
-void Mesh :: deleteBuffers() {
+void Mesh :: DeleteBuffers() {
 	glDeleteVertexArrays(1, &vao);
 	glDeleteBuffers(1, &vbo);
 	glDeleteBuffers(1, &ebo);

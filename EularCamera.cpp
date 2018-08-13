@@ -79,9 +79,9 @@ void Camera :: processMouse(float offsetX, float offsetY, GLboolean constrainPit
 
 // Process mouse scroller events
 void Camera :: processScroll(float offsetY) {
-	if (fov >= 1.0f && fov <= 45.0f) fov -= offsetY;
+	if (fov >= 1.0f && fov <= 150.0f) fov -= offsetY;
 	if (fov < 1.0f) fov = 1.0f;
-	if (fov > 45.0f) fov = 45.0f;
+	if (fov > 150.0f) fov = 150.0f;
 }
 
 // Adjust moving speed

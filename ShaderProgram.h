@@ -6,11 +6,17 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 
-class ShaderProgram {
+class Shader {
 
 public:
-	 ShaderProgram();
-	~ShaderProgram();
+	Shader();
+
+	Shader(
+		const char* vsFilename,
+		const char* fsFilename,
+		const char* gsFilename = NULL);
+
+	~Shader();
 
 	enum ShaderType
 	{
@@ -20,11 +26,14 @@ public:
 		PROGRAM
 	};
 
-	// Only supports vertex and fragment (this series will only have those two)
-	bool loadShaders(const char* vsFilename, const char* fsFilename, const char* gsFilename = NULL);
 	void use();
 
-	GLuint getProgram() const;
+	GLuint ID() const;
+
+	bool loadShaders(
+		const char* vsFilename,
+		const char* fsFilename,
+		const char* gsFilename = NULL);
 
 	void setUniform(const std::string& name, bool value);
 	void setUniform(const std::string& name, int value);
@@ -42,11 +51,12 @@ public:
 private:
 
 	std::string fileToString(const std::string& filename);
+
 	void  checkCompileErrors(GLuint shader, ShaderType type);
-	// We are going to speed up looking for uniforms by keeping their locations in a map
+
 	GLint getUniformLocation(const GLchar * name);
 	
-	GLuint mHandle; // unsigned int
+	GLuint mHandle;
 	std::map<std::string, GLint> mUniformLocations;
 };
 

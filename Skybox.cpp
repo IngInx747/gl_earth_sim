@@ -47,9 +47,11 @@ std::vector<unsigned int> skyboxElements = {
 	5, 6, 7,
 };
 
-int texture_skybox_index = 15;
-
-Skybox :: Skybox() { setup(); }
+Skybox :: Skybox()
+	: active_texture_unit(15)
+{
+	setup();
+}
 
 void Skybox :: setup() {
 
@@ -73,7 +75,7 @@ void Skybox :: setup() {
 	glBindVertexArray(0); // Release control of vao
 }
 
-void Skybox :: Draw(ShaderProgram & shader, glm::mat4 & view, glm::mat4 & projection) {
+void Skybox :: Draw(Shader & shader, glm::mat4 & view, glm::mat4 & projection) {
 
 	shader.use();
 	shader.setUniform("uView", view);
@@ -84,7 +86,7 @@ void Skybox :: Draw(ShaderProgram & shader, glm::mat4 & view, glm::mat4 & projec
 	glDepthFunc(GL_LEQUAL); // change depth func so depth test passes when val == depth buffer
 
 	glBindVertexArray(vao);
-	glActiveTexture(GL_TEXTURE0 + texture_skybox_index);
+	glActiveTexture(GL_TEXTURE0 + active_texture_unit);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, tid);
 	glDrawElements(GL_TRIANGLES, skyboxElements.size(), GL_UNSIGNED_INT, 0);
 	
