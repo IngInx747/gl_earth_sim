@@ -23,8 +23,9 @@ void main() {
 
 	gl_Position = uProjection * uView * uModel * vec4(aPos, 1.0f);
 
-	mat3 normalMatrix = mat3(transpose(inverse(uModel)));
+	mat3 normalMatrix = transpose(inverse(mat3(uModel)));
 
+	// To transform a vector V's components in tangent space to world space, TBN * V
 	vec3 T = normalize(normalMatrix * aTangent);
 	vec3 B = normalize(normalMatrix * aBitangent);
 	vec3 N = normalize(normalMatrix * aNormal);

@@ -109,17 +109,13 @@ in VS_OUT {
 
 void main() {
 
-	vec3 normal, viewDir;
-	
-	viewDir = normalize(uCameraPos - fs_in.FragPos);
+	vec3 normal = normalize(fs_in.Normal);
+	vec3 viewDir = normalize(uCameraPos - fs_in.FragPos);
 
 	if (uEnableNormal) {
 		normal = texture(uMaterial.texture_normal1, fs_in.TexCoords).rgb;
-		normal = normalize(normal * 2.0 - 1.0);
-		normal = normalize(fs_in.TBN * normal);
-		viewDir = fs_in.TBN * viewDir;
-	} else {
-		normal = normalize(fs_in.Normal);
+		normal = normalize(normal * 2.0 - 1.0); // [0,1] -> [-1,1]
+		normal = normalize(fs_in.TBN * normal); // now normal vector is in world space
 	}
 
 	vec4 resultColor = vec4(0.0);
@@ -169,7 +165,6 @@ vec4 CalcDirectionalLight(Directional_Light_t light, vec3 normal, vec3 viewDir,
 	vec4 ambientColor, diffuseColor, specularColor;
 
 	vec3 lightDir = normalize(-light.direction);
-	//if (uEnableNormal) lightDir = fs_in.TBN * lightDir;
 
 	// ambient
 	ambientColor = vec4(light.ambient, 1.0) * texture(diffuse, fs_in.TexCoords);
@@ -185,11 +180,10 @@ vec4 CalcDirectionalLight(Directional_Light_t light, vec3 normal, vec3 viewDir,
 	float specEff = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
 	specularColor = specEff * vec4(light.specular, 1.0) * texture(specular, fs_in.TexCoords);
 
-	
 	float shadow = CalcParallelShadow(lightDir, normal);
 
 	// result
-	return ambientColor + (diffuseColor + specularColor) * (1.5 - shadow);
+	return ambientColor + (diffuseColor + specularColor) * (1.2 - shadow);
 }
 
 vec4 CalcPointLight(Point_Light_t light, vec3 normal, vec3 viewDir,
@@ -231,7 +225,7 @@ vec4 CalcSpotLight(Spot_Light_t light, vec3 normal, vec3 viewDir,
 	// Physics
 	float distance = length(light.position - fs_in.FragPos);
 	float attenuation = 1.0 / (light.constant + light.linear*distance + light.quadratic*distance*distance);
-	float theta = dot(lightDir, normalize(-light.direction));
+	float theta = dot(lightDir, normalize(-light.direction)); // still in world coordinate
 	float epsilon = light.innerCutOff - light.outerCutOff;
 	float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
 

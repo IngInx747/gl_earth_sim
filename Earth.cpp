@@ -39,6 +39,7 @@ Camera camera(glm::vec3(0.0f, 0.0f, 30.0f));
 
 // Shader control
 bool enableTorch = true;
+bool enableNormal = true;
 
 // Function prototypes
 void processInput(GLFWwindow* window);
@@ -239,9 +240,9 @@ void renderScene(Shader & shader) {
 	// moon
 	float moonTrjRadius = 20.0f;
 	glm::vec3 moonPos(
-		moonTrjRadius * glm::cos(currentTime * angularVelocity / 3.0f),
+		moonTrjRadius * glm::cos(currentTime * angularVelocity / 1.0f),
 		0.0f,
-		moonTrjRadius * glm::sin(currentTime * angularVelocity / 3.0f));
+		moonTrjRadius * glm::sin(currentTime * angularVelocity / 1.0f));
 	
 	// Draw scene
 	glm::mat4 modelMatrix;
@@ -254,7 +255,8 @@ void renderScene(Shader & shader) {
 
 	shader.use();
 	shader.setUniform("uModel", modelMatrix);
-	shader.setUniform("uEnableNormal", true);
+	if (enableNormal)
+		shader.setUniform("uEnableNormal", true);
 	shader.setUniform("uEnableEmission", true);
 	pObjEarth.get()->Draw(shader);
 
@@ -378,6 +380,8 @@ void processInput(GLFWwindow* window) {
 
 	if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
 		enableTorch = !enableTorch;
+	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS)
+		enableNormal = !enableNormal;
 }
 
 //-----------------------------------------------------------------------------
