@@ -206,9 +206,9 @@ int main() {
 		// Shadow map
 		objectShader.setUniform("uLightSpaceMatrix", lightProjection * lightView);
 		objectShader.setUniform("uShadowMap", (int) shadowMap.active_texture_unit);
-		// Draw scene
 		glActiveTexture(GL_TEXTURE0 + shadowMap.active_texture_unit);
 		glBindTexture(GL_TEXTURE_2D, shadowMap.TID());
+		// Draw scene
 		renderScene(objectShader);
 
 
