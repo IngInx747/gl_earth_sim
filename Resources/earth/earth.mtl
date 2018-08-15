@@ -15,9 +15,9 @@ newmtl 01___Default
 	map_Ka earth.jpg
 	map_Kd earth.jpg
 	map_Ks earth.jpg
+	map_Kn earth_normal.jpg
+	map_bump earth_bump.jpg
 	map_emissive night_lights.jpg
-	map_bump bump.jpg
-	bump normal.jpg
 
 newmtl 02___Default
 	Ns 10.0000
@@ -32,7 +32,8 @@ newmtl 02___Default
 	Ke 0.0000 0.0000 0.0000
 	map_Ka clouds.jpg
 	map_Kd clouds.jpg
-	map_emissive clouds_em_cpem.png
-	map_bump clouds_nm_cpem.jpg
-	bump clouds_nm_cpem.jpg
+	#map_Ks clouds.jpg
+	map_Kn clouds_nm_cpem.jpg
+	map_bump black.png
+	map_emissive black.png
 	map_d clouds.jpg

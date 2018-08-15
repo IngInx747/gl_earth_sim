@@ -192,11 +192,11 @@ Mesh Model :: processMesh(aiMesh * mesh, const aiScene * scene) {
 		textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
 		// normal maps
 		std::vector<Texture> normalMaps = loadTextures(material,
-			aiTextureType_HEIGHT, TEX_NORMAL); // aiTextureType_NORMALS
+			aiTextureType_NORMALS, TEX_NORMAL); // aiTextureType_NORMALS
 		textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
 		// height maps
 		std::vector<Texture> heightMaps = loadTextures(material,
-			aiTextureType_AMBIENT, TEX_HEIGHT); // aiTextureType_HEIGHT
+			aiTextureType_HEIGHT, TEX_HEIGHT); // aiTextureType_HEIGHT
 		textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 		// emission maps
 		std::vector<Texture> emissionMaps = loadTextures(material,

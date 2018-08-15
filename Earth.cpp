@@ -40,6 +40,8 @@ Camera camera(glm::vec3(0.0f, 0.0f, 30.0f));
 // Shader control
 bool enableTorch = true;
 bool enableNormal = true;
+float adjustGamma = 2.2f;
+float adjustParallax = 0.01f;
 
 // Function prototypes
 void processInput(GLFWwindow* window);
@@ -255,6 +257,8 @@ void renderScene(Shader & shader) {
 
 	shader.use();
 	shader.setUniform("uModel", modelMatrix);
+	shader.setUniform("uGamma", adjustGamma);
+	shader.setUniform("uHeightScale", adjustParallax);
 	if (enableNormal)
 		shader.setUniform("uEnableNormal", true);
 	shader.setUniform("uEnableEmission", true);
@@ -382,6 +386,15 @@ void processInput(GLFWwindow* window) {
 		enableTorch = !enableTorch;
 	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS)
 		enableNormal = !enableNormal;
+
+	if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS)
+		adjustGamma = adjustGamma >= 4.0f ? 4.0f : adjustGamma + 0.01f;
+	if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS)
+		adjustGamma = adjustGamma <= 1.0f ? 1.0f : adjustGamma - 0.01f;
+	if (glfwGetKey(window, GLFW_KEY_PERIOD) == GLFW_PRESS)
+		adjustParallax = adjustParallax >= 1.0f ? 1.0f : adjustParallax + 0.0005f;
+	if (glfwGetKey(window, GLFW_KEY_COMMA) == GLFW_PRESS)
+		adjustParallax = adjustParallax <= 0.0f ? 0.0f : adjustParallax - 0.0005f;
 }
 
 //-----------------------------------------------------------------------------

@@ -59,18 +59,30 @@ struct TextureMap_t {
 
 /** Function definition */
 
-vec4 CalcDirectionalLight(Directional_Light_t light, vec3 normal, vec3 viewDir,
-	sampler2D diffuse, sampler2D specular);
+vec4 CalcDirectionalLight(
+	Directional_Light_t light,
+	vec3 normal, vec3 viewDir,
+	vec2 texCoords, sampler2D diffuse, sampler2D specular);
 
-vec4 CalcPointLight(Point_Light_t light, vec3 normal, vec3 viewDir,
-	sampler2D diffuse, sampler2D specular);
+vec4 CalcPointLight(
+	Point_Light_t light,
+	vec3 normal, vec3 viewDir, vec3 fragPos,
+	vec2 texCoords, sampler2D diffuse, sampler2D specular);
 
-vec4 CalcSpotLight(Spot_Light_t light, vec3 normal, vec3 viewDir,
-	sampler2D diffuse, sampler2D specular);
+vec4 CalcSpotLight(
+	Spot_Light_t light,
+	vec3 normal, vec3 viewDir, vec3 fragPos,
+	vec2 texCoords, sampler2D diffuse, sampler2D specular);
 
-vec4 CalcEmission(sampler2D emission, vec4 testLight);
+vec4 CalcEmission(
+	vec2 texCoords, sampler2D emission,
+	vec4 testLight);
 
 float CalcParallelShadow(vec3 lightDir, vec3 normal);
+
+vec2 ParallaxMapping(
+	vec2 texCoords, sampler2D height, float scale,
+	vec3 viewDir, vec3 normal);
 
 /** Uniform variables */
 
@@ -94,6 +106,8 @@ uniform sampler2D uShadowMap;
 uniform bool uEnableTorch;
 uniform bool uEnableEmission;
 uniform bool uEnableNormal;
+uniform float uGamma;
+uniform float uHeightScale;
 
 /** Stream variables */
 
@@ -112,35 +126,48 @@ void main() {
 	vec3 normal = normalize(fs_in.Normal);
 	vec3 viewDir = normalize(uCameraPos - fs_in.FragPos);
 
+	// Parallax mapping
+	vec2 texCoords = fs_in.TexCoords;
+
 	if (uEnableNormal) {
+		// get normal map
 		normal = texture(uMaterial.texture_normal1, fs_in.TexCoords).rgb;
 		normal = normalize(normal * 2.0 - 1.0); // [0,1] -> [-1,1]
-		normal = normalize(fs_in.TBN * normal); // now normal vector is in world space
+		// get parallax map
+		texCoords = ParallaxMapping(
+			fs_in.TexCoords, uMaterial.texture_height1, uHeightScale,
+			transpose(fs_in.TBN) * viewDir, normal);
+		// transform normal vector to world space coordinates
+		normal = normalize(fs_in.TBN * normal);
 	}
 
 	vec4 resultColor = vec4(0.0);
 
 	// Directional lighting
-	vec4 directionalLightColor = CalcDirectionalLight(uDirectionalLight, normal, viewDir,
-		uMaterial.texture_diffuse1, uMaterial.texture_specular1);
+	vec4 directionalLightColor = CalcDirectionalLight(
+		uDirectionalLight, normal, viewDir,
+		texCoords, uMaterial.texture_diffuse1, uMaterial.texture_specular1);
 
 	// Spot lighting
 	vec4 spotLightColor = vec4(0.0);
 	if (uEnableTorch)
-		spotLightColor = CalcSpotLight(uSpotLight, normal, viewDir,
-			uMaterial.texture_diffuse1, uMaterial.texture_specular1);
+		spotLightColor = CalcSpotLight(
+			uSpotLight, normal, viewDir, fs_in.FragPos,
+			texCoords, uMaterial.texture_diffuse1, uMaterial.texture_specular1);
 
 	// Point lighting
 	/**
 	for (int i=0; i<NR_POINT_LIGHTS; i++) {
-		resultColor += CalcPointLight(uPointLights[i], normal, viewDir,
-			uMaterial.texture_diffuse1, uMaterial.texture_specular1);
+		resultColor += CalcPointLight(
+			uPointLights[i], normal, viewDir, fs_in.FragPos,
+			texCoords, uMaterial.texture_diffuse1, uMaterial.texture_specular1);
 	}*/
 
 	//
 	vec4 emissionLight = vec4(0.0);
 	if (uEnableEmission)
-		emissionLight = CalcEmission(uMaterial.texture_emission1, directionalLightColor);
+		emissionLight = CalcEmission(
+			texCoords, uMaterial.texture_emission1, directionalLightColor);
 
 	// Light sum
 	resultColor = directionalLightColor + spotLightColor;
@@ -157,110 +184,42 @@ void main() {
 
 	// Result
 	FragColor = resultColor + emissionLight;
+
+	// Gamma correction
+	FragColor.xyz = pow(FragColor.xyz, vec3(1.0 / uGamma));
 }
 
-vec4 CalcDirectionalLight(Directional_Light_t light, vec3 normal, vec3 viewDir,
-	sampler2D diffuse, sampler2D specular) {
+vec2 ParallaxMapping(vec2 texCoords, sampler2D height, float scale, vec3 viewDir, vec3 normal) {
+	
+	//float disp = texture(height, texCoords).r;     
+	//return texCoords - viewDir.xy * (disp * scale);
 
-	vec4 ambientColor, diffuseColor, specularColor;
+	float minLayers = 8;
+	float maxLayers = 32;
+	float numLayers = mix(maxLayers, minLayers, abs(dot(normal, viewDir)));
+	// calculate size of each layer
+	float layerDepth = 1.0 / numLayers;
+	// depth of current layer
+	float currentLayerDepth = 0.0;
+	// amount to shift texture coordinates per layer
+	vec2 P = viewDir.xy * scale;
+	vec2 deltaTexCoords = P / numLayers;
+	
+	vec2 currentTexCoords = texCoords;
+	float currentDepthValue = texture(height, currentTexCoords).r;
 
-	vec3 lightDir = normalize(-light.direction);
+	for (int i = 0; i < numLayers; i++) {
+		if (currentLayerDepth >= currentDepthValue)
+			break;
+		// shift texture coordinates along direction of P
+		currentTexCoords -= deltaTexCoords;
+		// get depth map value at current texture coordinates
+		currentDepthValue = texture(height, currentTexCoords).r;
+		// get depth of next layer
+		currentLayerDepth += layerDepth;
+	}
 
-	// ambient
-	ambientColor = vec4(light.ambient, 1.0) * texture(diffuse, fs_in.TexCoords);
-
-	// diffuse
-	float diffEff = max(dot(normal, lightDir), 0.0);
-	diffuseColor = diffEff * vec4(light.diffuse, 1.0) * texture(diffuse, fs_in.TexCoords);
-
-	// specular
-	//vec3 reflectDir = reflect(-lightDir, normal);
-	vec3 halfwayDir = normalize(lightDir + viewDir);
-	//float specEff = pow(max(dot(viewDir, reflectDir), 0.0), 64.0);
-	float specEff = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
-	specularColor = specEff * vec4(light.specular, 1.0) * texture(specular, fs_in.TexCoords);
-
-	float shadow = CalcParallelShadow(lightDir, normal);
-
-	// result
-	return ambientColor + (diffuseColor + specularColor) * (1.2 - shadow);
-}
-
-vec4 CalcPointLight(Point_Light_t light, vec3 normal, vec3 viewDir,
-	sampler2D diffuse, sampler2D specular) {
-
-	vec4 ambientColor, diffuseColor, specularColor;
-
-	vec3 lightDir = normalize(light.position - fs_in.FragPos);
-
-	// Physics
-	float distance = length(light.position - fs_in.FragPos);
-	float attenuation = 1.0 / (light.constant + light.linear*distance + light.quadratic*distance*distance);
-
-	// ambient
-	ambientColor = vec4(light.ambient, 1.0) * texture(diffuse, fs_in.TexCoords);
-
-	// diffuse
-	float diffEff = max(dot(normal, lightDir), 0.0);
-	diffuseColor = diffEff * vec4(light.diffuse, 1.0) * texture(diffuse, fs_in.TexCoords);
-
-	// specular
-	//vec3 reflectDir = reflect(-lightDir, normal);
-	vec3 halfwayDir = normalize(lightDir + viewDir);
-	//float specEff = pow(max(dot(viewDir, reflectDir), 0.0), 64.0);
-	float specEff = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
-	specularColor = specEff * vec4(light.specular, 1.0) * texture(specular, fs_in.TexCoords);
-
-	// result
-	return attenuation * (ambientColor + diffuseColor + specularColor);
-}
-
-vec4 CalcSpotLight(Spot_Light_t light, vec3 normal, vec3 viewDir,
-	sampler2D diffuse, sampler2D specular) {
-
-	vec4 ambientColor, diffuseColor, specularColor;
-
-	vec3 lightDir = normalize(light.position - fs_in.FragPos);
-
-	// Physics
-	float distance = length(light.position - fs_in.FragPos);
-	float attenuation = 1.0 / (light.constant + light.linear*distance + light.quadratic*distance*distance);
-	float theta = dot(lightDir, normalize(-light.direction)); // still in world coordinate
-	float epsilon = light.innerCutOff - light.outerCutOff;
-	float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
-
-	// Ambient lighting
-	ambientColor = vec4(light.ambient, 1.0) * texture(diffuse, fs_in.TexCoords);
-
-	// Diffuse lighting
-	float diffEff = max(dot(normal, lightDir), 0.0);
-	diffuseColor = diffEff * vec4(light.diffuse, 1.0) * texture(diffuse, fs_in.TexCoords);
-
-	// Specular lighting
-	//vec3 reflectDir = reflect(-lightDir, normal);
-	vec3 halfwayDir = normalize(lightDir + viewDir);
-	//float specEff = pow(max(dot(viewDir, reflectDir), 0.0), 64.0);
-	float specEff = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
-	specularColor = specEff * vec4(light.specular, 1.0) * texture(specular, fs_in.TexCoords);
-
-	// Result lighting
-	return attenuation * (ambientColor + (diffuseColor + specularColor) * intensity);
-}
-
-vec4 CalcEmission(sampler2D emission, vec4 testLight) {
-
-	// emission
-	vec4 emissionColor = texture(emission, fs_in.TexCoords);
-
-	// Ignore black parts of emission texture, transparentize them
-	if (emissionColor.x < 0.3 || emissionColor.y < 0.3 || emissionColor.z < 0.3)
-		emissionColor = vec4(0.0, 0.0, 0.0, 0.0);
-
-	// Turn off light if environment is bright enough (simulate city lighting)
-	if (testLight.x > 0.1 || testLight.y > 0.1 || testLight.z > 0.1)
-		emissionColor = vec4(0.0, 0.0, 0.0, 0.0);
-
-	return emissionColor;
+	return currentTexCoords;
 }
 
 float CalcParallelShadow(vec3 lightDir, vec3 normal) {
@@ -288,4 +247,108 @@ float CalcParallelShadow(vec3 lightDir, vec3 normal) {
 	shadow /= 9.0;
 
 	return shadow;
+}
+
+vec4 CalcDirectionalLight(Directional_Light_t light, vec3 normal, vec3 viewDir,
+	vec2 texCoords, sampler2D diffuse, sampler2D specular) {
+
+	vec4 ambientColor, diffuseColor, specularColor;
+
+	vec3 lightDir = normalize(-light.direction);
+
+	// ambient
+	ambientColor = vec4(light.ambient, 1.0) * texture(diffuse, texCoords);
+
+	// diffuse
+	float diffEff = max(dot(normal, lightDir), 0.0);
+	diffuseColor = diffEff * vec4(light.diffuse, 1.0) * texture(diffuse, texCoords);
+
+	// specular
+	//vec3 reflectDir = reflect(-lightDir, normal);
+	vec3 halfwayDir = normalize(lightDir + viewDir);
+	//float specEff = pow(max(dot(viewDir, reflectDir), 0.0), 64.0);
+	float specEff = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
+	specularColor = specEff * vec4(light.specular, 1.0) * texture(specular, texCoords);
+
+	float shadow = CalcParallelShadow(lightDir, normal);
+
+	// result
+	return ambientColor + (diffuseColor + specularColor) * (1.2 - shadow);
+}
+
+vec4 CalcPointLight(Point_Light_t light, vec3 normal, vec3 viewDir, vec3 fragPos,
+	vec2 texCoords, sampler2D diffuse, sampler2D specular) {
+
+	vec4 ambientColor, diffuseColor, specularColor;
+
+	vec3 lightDir = normalize(light.position - fragPos);
+
+	// Physics
+	float distance = length(light.position - fragPos);
+	float attenuation = 1.0 / (light.constant + light.linear*distance + light.quadratic*distance*distance);
+
+	// ambient
+	ambientColor = vec4(light.ambient, 1.0) * texture(diffuse, texCoords);
+
+	// diffuse
+	float diffEff = max(dot(normal, lightDir), 0.0);
+	diffuseColor = diffEff * vec4(light.diffuse, 1.0) * texture(diffuse, texCoords);
+
+	// specular
+	//vec3 reflectDir = reflect(-lightDir, normal);
+	vec3 halfwayDir = normalize(lightDir + viewDir);
+	//float specEff = pow(max(dot(viewDir, reflectDir), 0.0), 64.0);
+	float specEff = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
+	specularColor = specEff * vec4(light.specular, 1.0) * texture(specular, texCoords);
+
+	// result
+	return attenuation * (ambientColor + diffuseColor + specularColor);
+}
+
+vec4 CalcSpotLight(Spot_Light_t light, vec3 normal, vec3 viewDir, vec3 fragPos,
+	vec2 texCoords, sampler2D diffuse, sampler2D specular) {
+
+	vec4 ambientColor, diffuseColor, specularColor;
+
+	vec3 lightDir = normalize(light.position - fragPos);
+
+	// Physics
+	float distance = length(light.position - fragPos);
+	float attenuation = 1.0 / (light.constant + light.linear*distance + light.quadratic*distance*distance);
+	float theta = dot(lightDir, normalize(-light.direction)); // still in world coordinate
+	float epsilon = light.innerCutOff - light.outerCutOff;
+	float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
+
+	// Ambient lighting
+	ambientColor = vec4(light.ambient, 1.0) * texture(diffuse, texCoords);
+
+	// Diffuse lighting
+	float diffEff = max(dot(normal, lightDir), 0.0);
+	diffuseColor = diffEff * vec4(light.diffuse, 1.0) * texture(diffuse, texCoords);
+
+	// Specular lighting
+	//vec3 reflectDir = reflect(-lightDir, normal);
+	vec3 halfwayDir = normalize(lightDir + viewDir);
+	//float specEff = pow(max(dot(viewDir, reflectDir), 0.0), 64.0);
+	float specEff = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
+	specularColor = specEff * vec4(light.specular, 1.0) * texture(specular, texCoords);
+
+	// Result lighting
+	return attenuation * (ambientColor + (diffuseColor + specularColor) * intensity);
+}
+
+vec4 CalcEmission(vec2 texCoords, sampler2D emission, vec4 testLight) {
+
+	// emission
+	vec4 emissionColor = texture(emission, texCoords);
+
+	// Ignore black parts of emission texture, transparentize them
+	if (emissionColor.x < 0.3 || emissionColor.y < 0.3 || emissionColor.z < 0.3)
+		emissionColor = vec4(0.0, 0.0, 0.0, 0.0);
+
+	// Turn off light if environment is bright enough (simulate city lighting)
+	if (testLight.x > 0.1 || testLight.y > 0.1 || testLight.z > 0.1)
+		emissionColor = vec4(0.0, 0.0, 0.0, 0.0);
+
+	return emissionColor;
 }
