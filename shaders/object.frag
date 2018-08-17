@@ -106,6 +106,7 @@ uniform sampler2D uShadowMap;
 uniform bool uEnableTorch;
 uniform bool uEnableEmission;
 uniform bool uEnableNormal;
+uniform float uTime;
 uniform float uGamma;
 uniform float uHeightScale;
 
@@ -130,15 +131,21 @@ void main() {
 	vec2 texCoords = fs_in.TexCoords;
 
 	if (uEnableNormal) {
+		// get parallax map
+		texCoords = ParallaxMapping(texCoords, uMaterial.texture_height1, uHeightScale,
+			transpose(fs_in.TBN) * viewDir, transpose(fs_in.TBN) * fs_in.Normal);
 		// get normal map
 		normal = texture(uMaterial.texture_normal1, fs_in.TexCoords).rgb;
-		normal = normalize(normal * 2.0 - 1.0); // [0,1] -> [-1,1]
-		// get parallax map
-		texCoords = ParallaxMapping(
-			fs_in.TexCoords, uMaterial.texture_height1, uHeightScale,
-			transpose(fs_in.TBN) * viewDir, normal);
 		// transform normal vector to world space coordinates
+		normal = normalize(normal * 2.0 - 1.0); // [0,1] -> [-1,1]
 		normal = normalize(fs_in.TBN * normal);
+	}
+
+	// Tell whether it is cloud texture
+	vec4 testColor = texture(uMaterial.texture_diffuse1, texCoords);
+	if (testColor.x > 0.001 && testColor.y < 0.001 && testColor.z < 0.001) {
+		float offset = 0.05 * uTime;
+		texCoords.x = fract(texCoords.x + offset);
 	}
 
 	vec4 resultColor = vec4(0.0);
@@ -173,7 +180,6 @@ void main() {
 	resultColor = directionalLightColor + spotLightColor;
 
 	// Greyscale process
-	vec4 testColor = texture(uMaterial.texture_diffuse1, fs_in.TexCoords);
 	if (testColor.x > 0.001 && testColor.y < 0.001 && testColor.z < 0.001) {
 		// Cloud part
 		resultColor = vec4(resultColor.r);
@@ -218,6 +224,12 @@ vec2 ParallaxMapping(vec2 texCoords, sampler2D height, float scale, vec3 viewDir
 		// get depth of next layer
 		currentLayerDepth += layerDepth;
 	}
+
+	vec2 prevTexCoords = currentTexCoords + deltaTexCoords;
+	float afterDepth = currentDepthValue - currentLayerDepth;
+	float beforeDepth = texture(height, prevTexCoords).r - currentLayerDepth + layerDepth;
+	float weight = afterDepth / (afterDepth - beforeDepth);
+	currentTexCoords = prevTexCoords * weight + currentTexCoords * (1.0 - weight);
 
 	return currentTexCoords;
 }

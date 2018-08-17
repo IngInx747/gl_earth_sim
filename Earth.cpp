@@ -257,6 +257,7 @@ void renderScene(Shader & shader) {
 
 	shader.use();
 	shader.setUniform("uModel", modelMatrix);
+	shader.setUniform("uTime", currentTime);
 	shader.setUniform("uGamma", adjustGamma);
 	shader.setUniform("uHeightScale", adjustParallax);
 	if (enableNormal)
